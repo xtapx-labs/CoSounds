@@ -1,14 +1,16 @@
-import { Router } from 'express';
-import { authenticateToken, requireRole } from '../middleware/auth.js';
+const { Router } = require('express');
+const { authenticateToken } = require('../middleware/auth.js');
+
+const router = Router();
 
 router.get('/profile', authenticateToken, async (req, res) => {
   try {
     // Use the per-request client (acts as the user)
     // RLS ensures they only see their own profile
-    const { data, error } = await req.supabase!
-      .from('user_profiles')
+    const { data, error } = await req.supabase
+      .from('profiles')
       .select('*')
-      .eq('id', req.user!.id)
+      .eq('id', req.user.id)
       .single();
 
     if (error) {
@@ -21,3 +23,5 @@ router.get('/profile', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch profile' });
   }
 });
+
+module.exports = router;
