@@ -5,6 +5,7 @@ import Home from "./Pages/Home";
 import Vote from "./Pages/Vote";
 import VoteConfirmation from "./Pages/VoteConfirmation";
 import { Settings } from "./Pages/Settings";
+import Preferences from "./Pages/Preferences";
 import { ProtectedRoute } from "./Components/ProtectedRoute";
 
 // Layout with permanent Sidebar for authenticated routes
@@ -37,14 +38,9 @@ const router = createBrowserRouter([
         element: <Home />,
       },
       {
-        path: "vote",
-        element: <Vote />,
+        path: "preferences",
+        element: <Preferences />,
       },
-      {
-        path: "vote/:voteValue",
-        element: <VoteConfirmation />,
-      },
-      // Protected routes nested here but with protection
       {
         path: "settings",
         element: (
