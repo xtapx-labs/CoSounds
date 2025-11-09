@@ -2,6 +2,8 @@ import { createBrowserRouter, RouterProvider, Outlet } from "react-router-dom";
 import { Login } from "./Pages/Login";
 import { AuthCallback } from "./Pages/AuthCallback";
 import Home from "./Pages/Home";
+import Vote from "./Pages/Vote";
+import VoteConfirmation from "./Pages/VoteConfirmation";
 import { Settings } from "./Pages/Settings";
 import Preferences from "./Pages/Preferences";
 import { ProtectedRoute } from "./Components/ProtectedRoute";
@@ -26,15 +28,10 @@ const router = createBrowserRouter([
     path: "/auth/callback",
     element: <AuthCallback />,
   },
-
-  // Protected routes with Layout
+  // Public voting routes (no authentication required)
   {
     path: "/",
-    element: (
-      <ProtectedRoute>
-        <Layout />
-      </ProtectedRoute>
-    ),
+    element: <Layout />,
     children: [
       {
         index: true,
@@ -46,7 +43,11 @@ const router = createBrowserRouter([
       },
       {
         path: "settings",
-        element: <Settings />,
+        element: (
+          <ProtectedRoute>
+            <Settings />
+          </ProtectedRoute>
+        ),
       },
     ],
   },
