@@ -180,7 +180,7 @@ const Vote = () => {
           <h1 className={styles['voting-title']}>
             Welcome to Sound Guys
           </h1>
-          <div className={styles['voting-title-line']} style={{background: 'linear-gradient(to right, #ec4899, #a855f7)'}}></div>
+          <div className={styles['voting-title-line']}></div>
         </div>
 
         {/* Currently Playing Card */}
