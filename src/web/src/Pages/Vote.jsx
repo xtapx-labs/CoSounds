@@ -410,9 +410,7 @@ The more you vote, the better your music gets.
               </div>
             </div>
           </div>
-          <p className="mt-4 text-xs text-white/60">
-            Tap a sticker to reinforce or redirect this track every ping updates the playlist model.
-          </p>
+        
         </section>
 
         <section className="rounded-3xl border border-white/10 bg-white/5 p-5">
