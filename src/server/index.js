@@ -19,6 +19,8 @@ const { createClient } = require("@supabase/supabase-js");
 const authRoutes = require("./routes/auth.js");
 const prefVoteRoutes = require("./routes/prefVote.js");
 const modelRoutes = require("./routes/modelRoutes.js");
+const leaderboardRoutes = require("./routes/leaderboard.js");
+const sessionRoutes = require("./routes/session.js");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -40,7 +42,9 @@ app.use(express.json());
 
 app.use("/api/auth", authRoutes);
 app.use("/api", prefVoteRoutes);
+app.use("/api", sessionRoutes);
 app.use("/api/model", modelRoutes);
+app.use("/api/leaderboard", leaderboardRoutes);
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
