@@ -322,10 +322,11 @@ const Vote = () => {
       <div className="mx-auto flex w-full max-w-md flex-col gap-4">
         <header className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur">
             <div>
-              <p className="text-3xl font-semibold text-white">Cosounds</p>
-              <p className="text-sm font-medium uppercase tracking-[0.3em] text-white/60">Connect through music.</p>
+              <p className="text-xl font-medium uppercase tracking-[0.2em] text-white">Cosounds</p>
+              <p className="text-xl font-semibold text-white/60">Connect through music.</p>
               <p className="mt-2 text-[0.8rem] text-white/70">
-                Two taps teach the DJ. Every sticker press is reinforcement so the lounge keeps matching your crew.
+                Tap the green or red stickers to shape what plays next. 
+The more you vote, the better your music gets.
               </p>
             </div>
             <div className="mt-4 flex items-center justify-between gap-3">
@@ -365,7 +366,7 @@ const Vote = () => {
         </header>
 
         <section className="rounded-3xl border border-white/10 bg-white/5 p-5 text-center">
-          <p className="text-[0.65rem] uppercase tracking-[0.35em] text-white/60">Vibe timer</p>
+          <p className="text-sm font-medium uppercase tracking-[0.3em] text-white/60">Vibe timer</p>
           <div className="mt-2 text-4xl font-semibold">{formattedTimer}</div>
           <p className="mt-1 text-sm text-white/70">{minutesLabel} minutes of hang time left</p>
           <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
@@ -384,7 +385,7 @@ const Vote = () => {
         <section className="rounded-3xl border border-white/10 bg-white/5 p-5">
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1">
-              <p className="text-[0.65rem] uppercase tracking-[0.35em] text-white/60">Now playing</p>
+              <p className="text-sm font-medium uppercase tracking-[0.3em] text-white/60">Now playing</p>
               <h1 className="mt-1 text-2xl font-semibold text-white">{displaySongTitle}</h1>
               <p className="mt-2 text-sm text-white/70">
                 {liveSongTimestamp ? `Updated ${liveSongTimestamp}` : 'Waiting for the DJ to push a new track.'}
@@ -410,13 +411,13 @@ const Vote = () => {
             </div>
           </div>
           <p className="mt-4 text-xs text-white/60">
-            Tap a sticker to reinforce or redirect this track—every ping updates the playlist model.
+            Tap a sticker to reinforce or redirect this track every ping updates the playlist model.
           </p>
         </section>
 
         <section className="rounded-3xl border border-white/10 bg-white/5 p-5">
           <div>
-            <p className="text-[0.65rem] uppercase tracking-[0.35em] text-white/60">Tap a sticker</p>
+            <p className="text-sm font-medium uppercase tracking-[0.3em] text-white/60">Tap a sticker</p>
             <h2 className="mt-1 text-xl font-semibold text-white">Two taps, personalized experience</h2>
           </div>
           <div className="mt-4 flex flex-col gap-3">
