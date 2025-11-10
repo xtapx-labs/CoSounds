@@ -83,8 +83,7 @@ export const Login = () => {
               </div>
             </div>
             <h1 className={styles['login-title']}>
-              <span className={styles['title-word']}>Sound</span>
-              <span className={styles['title-word']}>Guys</span>
+              <span className={styles['title-word']}>Cosounds</span>
             </h1>
             <p className={styles['login-subtitle']}>
               <span className={styles['subtitle-word']}>Find</span>
