@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Pause, Play } from 'lucide-react';
 import FullScreenLoader from '../Components/FullScreenLoader';
+import { apiClient } from '../lib/apt';
 import styles from './Preferences.module.css';
 
 import rainSound from '../assets/rain_sounds.wav';
@@ -225,7 +226,7 @@ const PreferencesSurvey = () => {
     };
   }, []);
 
-  const handleAdvance = () => {
+  const handleAdvance = async () => {
     if (!selectedRating) {
       return;
     }
@@ -251,12 +252,36 @@ const PreferencesSurvey = () => {
 
       setIsCompleting(true);
 
-      setTimeout(() => {
+      try {
+        // Save preferences to database via API
+        const result = await apiClient('/api/preferences', {
+          method: 'POST',
+          body: JSON.stringify({
+            preferences: normalized,
+          }),
+        });
+
+        console.log('Preferences saved to database:', result);
+
+        // Clean up sessionStorage
         sessionStorage.removeItem('preferenceRatings');
         sessionStorage.removeItem('topGenres');
+
+        // Mark preferences as completed in localStorage
         localStorage.setItem('hasCompletedPreferences', 'true');
-        navigate('/vote', { replace: true });
-      }, 1500);
+
+        // Navigate to vote page after short delay
+        setTimeout(() => {
+          navigate('/vote', { replace: true });
+        }, 1000);
+      } catch (error) {
+        console.error('Failed to save preferences:', error);
+        setIsCompleting(false);
+
+        // Show user-friendly error message
+        const errorMsg = error.message || 'Failed to save your preferences. Please try again.';
+        alert(errorMsg);
+      }
       return;
     }
 
