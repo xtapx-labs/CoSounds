@@ -1,6 +1,11 @@
-const express = require('express');
+﻿const express = require('express');
 const router = express.Router();
+const { createClient } = require('@supabase/supabase-js');
 const { authenticateToken } = require('../middleware/auth');
+
+const serviceClient = process.env.SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+  : null;
 
 // ============================================
 // PREFERENCE ENDPOINTS (Protected)
@@ -55,10 +60,6 @@ router.get('/preferences', authenticateToken, async (req, res) => {
 router.post('/preferences', authenticateToken, async (req, res) => {
   try {
     const { preferences } = req.body
-    console.log('📥 Received body:', req.body);
-    console.log('📊 Preferences value:', preferences);
-    console.log('🔍 Is array?', Array.isArray(preferences));
-    console.log('📏 Length:', preferences?.length);
     
     // Validate array
     if (!Array.isArray(preferences) || preferences.length !== 5) {
@@ -484,6 +485,50 @@ router.delete('/votes/:id', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Delete vote error:', err);
     res.status(500).json({ error: 'Failed to delete vote' });
+  }
+});
+
+router.get('/current-song', async (_req, res) => {
+  try {
+    if (!serviceClient) {
+      return res.json({
+        success: true,
+        data: process.env.CURRENT_SONG_NAME
+          ? {
+              reference_id: null,
+              song: process.env.CURRENT_SONG_NAME,
+              updated_at: null,
+            }
+          : null,
+        message: 'Current song source not configured',
+      });
+    }
+
+    const { data, error } = await serviceClient
+      .from('vote')
+      .select('id, song, vote_time')
+      .order('vote_time', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    const latest = Array.isArray(data) ? data[0] : null;
+
+    res.json({
+      success: true,
+      data: latest
+        ? {
+            reference_id: latest.id,
+            song: latest.song,
+            updated_at: latest.vote_time,
+          }
+        : null,
+    });
+  } catch (err) {
+    console.error('Get current song error:', err);
+    res.status(500).json({ error: 'Failed to load current song' });
   }
 });
 

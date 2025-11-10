@@ -1,8 +1,8 @@
 
 // src/server/index.js
 const path = require("path");
-// ✅ Load .env from project root
-require("dotenv").config({ path: path.join(__dirname, "../.env") });
+// ✅ Load .env from src/server/.env
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 // sanity check (remove after)
 ["SUPABASE_URL","SUPABASE_ANON_KEY"].forEach(k=>{
@@ -40,15 +40,22 @@ app.use((req, res, next) => {
 app.use(cors());
 app.use(express.json());
 
+// Routes
 app.use("/api/auth", authRoutes);
 app.use("/api", prefVoteRoutes);
 app.use("/api", sessionRoutes);
 app.use("/api/model", modelRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
+
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
+
 app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });
 });
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📡 NFC voting ready`);
+});
