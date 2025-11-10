@@ -1,352 +1,246 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ThumbsUp, ThumbsDown, User, LogOut } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { useNavigate } from 'react-router-dom';
+import { User, LogOut } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 import { apiClient } from '../lib/apt';
-import styles from './Vote.module.css';
-import easterEggImage from '../assets/67.jpeg';
-import easterEggAudio from '../assets/67.wav';
-
-const KONAMI_SEQUENCE = [
-  'ArrowUp',
-  'ArrowUp',
-  'ArrowDown',
-  'ArrowDown',
-  'ArrowLeft',
-  'ArrowRight',
-  'ArrowLeft',
-  'ArrowRight',
-  'b',
-  'a',
-  'Enter',
-];
-
-const normalizeKey = (key) => (key.length === 1 ? key.toLowerCase() : key);
 
 const Vote = () => {
-  // NFC Tag mapping: tagId -> voteValue
-  const NFC_TAG_MAPPING = {
-    '1234567': 1, // Thumbs up
-    '1234568': 0, // Thumbs down
-  };
-
-  const [currentSong, setCurrentSong] = useState(null);
+  const { signOut } = useAuth();
+  const [currentSong, setCurrentSong] = useState('');
   const [selectedVote, setSelectedVote] = useState(null);
-  const [hasVoted, setHasVoted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [songName, setSongName] = useState('');
+  const [liveSongTitle, setLiveSongTitle] = useState('');
+  const [liveSongUpdatedAt, setLiveSongUpdatedAt] = useState(null);
+  const [canonicalSong, setCanonicalSong] = useState('');
   const [isLoadingSong, setIsLoadingSong] = useState(true);
-  const [songError, setSongError] = useState(null);
-  const [isMobile, setIsMobile] = useState(false);
-  const [nfcTagDetected, setNfcTagDetected] = useState(null);
-  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isEasterEggActive, setIsEasterEggActive] = useState(false);
-  const konamiIndexRef = useRef(0);
-  const eggAudioRef = useRef(null);
-  const authSubscriptionRef = useRef(null);
-  const normalizedSequence = useMemo(
-    () => KONAMI_SEQUENCE.map((key) => normalizeKey(key)),
-    []
-  );
-  const [submissionError, setSubmissionError] = useState(null);
+  const [hasActiveSession, setHasActiveSession] = useState(false);
+  const [sessionInfo, setSessionInfo] = useState(null);
+  const [timerSeconds, setTimerSeconds] = useState(null);
+  const [sessionDurationSeconds, setSessionDurationSeconds] = useState(null);
+  const [isChangingSong, setIsChangingSong] = useState(false);
 
-  const fetchCurrentSong = useCallback(async () => {
-    setIsLoadingSong(true);
-    setSongError(null);
+  const fetchCurrentSong = useCallback(async (showSpinner = false) => {
+    if (showSpinner) setIsLoadingSong(true);
     try {
-      const response = await apiClient('/api/model/currentSong');
-      if (response?.current_song) {
-        setCurrentSong(response.current_song);
+      // Primary: Get current song from vote history
+      const result = await apiClient('/api/current-song');
+      const songValue = result?.data?.song || '';
+
+      if (songValue) {
+        setCurrentSong(songValue);
+        setSongName(songValue);
+        console.log('✅ Current song loaded:', songValue);
       } else {
-        setCurrentSong(null);
-        setSongError('No current song available.');
+        setCurrentSong('');
+        setSongName('No song playing');
+        console.log('⚠️ No current song available');
       }
-    } catch (error) {
-      if (error.status === 404) {
-        setSongError('No song is currently playing.');
-      } else {
-        setSongError(error.message || 'Failed to fetch current song.');
-      }
-      setCurrentSong(null);
-      console.error('Failed to fetch current song:', error);
+
+      // Background: Ping model endpoint to sync recommendation system
+      apiClient('/api/model/currentSong')
+        .then(modelResult => {
+          if (modelResult?.current_song) {
+            setLiveSongTitle(modelResult.current_song);
+            setLiveSongUpdatedAt(modelResult.played_at || null);
+          }
+        })
+        .catch(err => {
+          console.log('ℹ️ Model endpoint not available:', err.status);
+        });
+
+    } catch (err) {
+      console.error('Error loading current song:', err);
+      setCurrentSong('');
+      setSongName('Error loading song');
     } finally {
-      setIsLoadingSong(false);
+      if (showSpinner) setIsLoadingSong(false);
+    }
+  }, []);
+
+  const syncTimerFromSession = useCallback((data) => {
+    if (!data) {
+      setTimerSeconds(null);
+      setSessionDurationSeconds(null);
+      return;
+    }
+
+    const expiresAt = data.expires_at ? new Date(data.expires_at).getTime() : null;
+    const checkedAt = data.checked_in_at ? new Date(data.checked_in_at).getTime() : null;
+    const expiresInMinutes =
+      typeof data.minutes_remaining === 'number'
+        ? data.minutes_remaining
+        : typeof data.expires_in_minutes === 'number'
+        ? data.expires_in_minutes
+        : null;
+
+    if (expiresAt) {
+      const now = Date.now();
+      const remainingSeconds = Math.max(0, Math.floor((expiresAt - now) / 1000));
+      setTimerSeconds(remainingSeconds);
+      if (checkedAt) {
+        setSessionDurationSeconds(Math.max(1, Math.floor((expiresAt - checkedAt) / 1000)));
+      } else if (expiresInMinutes !== null) {
+        setSessionDurationSeconds(Math.max(1, Math.floor(expiresInMinutes * 60)));
+      }
+    } else if (expiresInMinutes !== null) {
+      const seconds = Math.max(0, Math.floor(expiresInMinutes * 60));
+      setTimerSeconds(seconds);
+      setSessionDurationSeconds(Math.max(1, seconds));
+    } else {
+      setTimerSeconds(null);
+      setSessionDurationSeconds(null);
     }
   }, []);
 
   useEffect(() => {
-    fetchCurrentSong();
-    const intervalId = setInterval(fetchCurrentSong, 60 * 1000);
-    return () => clearInterval(intervalId);
+    fetchCurrentSong(true);
+    const interval = setInterval(() => fetchCurrentSong(false), 20000);
+    return () => clearInterval(interval);
   }, [fetchCurrentSong]);
 
   useEffect(() => {
-    if (currentSong) {
-      setSubmissionError(null);
-    }
-  }, [currentSong]);
-
-  useEffect(() => {
-    if (!isLoggedIn && isAccountMenuOpen) {
-      setIsAccountMenuOpen(false);
-    }
-  }, [isLoggedIn, isAccountMenuOpen]);
-
-  useEffect(() => {
-    // Check if mobile
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const initialiseAuth = async () => {
+    const initSession = async () => {
       try {
-        const { data } = await supabase.auth.getSession();
-        if (isMounted) {
-          setIsLoggedIn(Boolean(data?.session));
+        const result = await apiClient('/api/session');
+        if (result.active) {
+          setHasActiveSession(true);
+          setSessionInfo(result.data || null);
+          syncTimerFromSession(result.data);
+        } else {
+          const checkinResult = await apiClient('/api/checkin', { method: 'POST' });
+          if (checkinResult.success) {
+            setHasActiveSession(true);
+            setSessionInfo(checkinResult.data || null);
+            syncTimerFromSession(checkinResult.data);
+          } else {
+            setSessionInfo(null);
+            syncTimerFromSession(null);
+          }
+        }
+      } catch (err) {
+        console.error('Error initializing session:', err);
+        setHasActiveSession(false);
+        setSessionInfo(null);
+        syncTimerFromSession(null);
+      }
+    };
+    initSession();
+  }, [syncTimerFromSession]);
+
+  useEffect(() => {
+    if (!hasActiveSession) return undefined;
+    const interval = setInterval(async () => {
+      try {
+        const result = await apiClient('/api/session');
+        if (result.active) {
+          setSessionInfo(result.data || null);
+          syncTimerFromSession(result.data);
+        } else {
+          setHasActiveSession(false);
+          setSessionInfo(null);
+          syncTimerFromSession(null);
         }
       } catch (error) {
-        console.warn('Unable to determine auth session', error);
+        console.error('Error refreshing session:', error);
       }
-    };
-
-    initialiseAuth();
-
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsLoggedIn(Boolean(session));
-    });
-
-    authSubscriptionRef.current = subscription;
-
-    return () => {
-      isMounted = false;
-      const sub = authSubscriptionRef.current?.subscription ?? authSubscriptionRef.current;
-      if (sub && typeof sub.unsubscribe === 'function') {
-        sub.unsubscribe();
-      }
-    };
-  }, []);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [hasActiveSession, syncTimerFromSession]);
 
   useEffect(() => {
-    const audio = new Audio(easterEggAudio);
-    audio.preload = 'auto';
-    const handleEnded = () => {
-      setIsEasterEggActive(false);
-    };
-
-    audio.addEventListener('ended', handleEnded);
-    eggAudioRef.current = audio;
-
-    return () => {
-      audio.removeEventListener('ended', handleEnded);
-      audio.pause();
-      eggAudioRef.current = null;
-    };
-  }, []);
-
-  const triggerEasterEgg = useCallback(() => {
-    if (!isLoggedIn) {
-      return;
-    }
-
-    const audio = eggAudioRef.current;
-    if (!audio) {
-      return;
-    }
-
-    try {
-      audio.pause();
-      audio.currentTime = 0;
-    } catch (error) {
-      console.warn('Unable to reset easter egg audio', error);
-    }
-
-    setIsEasterEggActive(true);
-    audio
-      .play()
-      .catch((error) => {
-        console.warn('Easter egg audio failed to play', error);
-        setIsEasterEggActive(false);
+    if (!hasActiveSession) return undefined;
+    const interval = setInterval(() => {
+      setTimerSeconds((prev) => {
+        if (prev === null) return prev;
+        if (prev <= 1) {
+          setHasActiveSession(false);
+          return 0;
+        }
+        return prev - 1;
       });
-  }, [isLoggedIn]);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [hasActiveSession]);
 
-  useEffect(() => {
-    if (!isLoggedIn) {
-      konamiIndexRef.current = 0;
-      return undefined;
-    }
-
-    const handleKeyDown = (event) => {
-      const key = normalizeKey(event.key);
-      const expected = normalizedSequence[konamiIndexRef.current];
-
-      if (key === expected) {
-        konamiIndexRef.current += 1;
-        if (konamiIndexRef.current === normalizedSequence.length) {
-          konamiIndexRef.current = 0;
-          triggerEasterEgg();
-        }
-      } else {
-        const firstKey = normalizedSequence[0];
-        konamiIndexRef.current = key === firstKey ? 1 : 0;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isLoggedIn, normalizedSequence, triggerEasterEgg]);
-
-  useEffect(() => {
-    if (!isLoggedIn && isEasterEggActive) {
-      setIsEasterEggActive(false);
-      if (eggAudioRef.current) {
-        try {
-          eggAudioRef.current.pause();
-          eggAudioRef.current.currentTime = 0;
-        } catch (error) {
-          console.warn('Unable to stop easter egg audio', error);
-        }
-      }
-    }
-  }, [isLoggedIn, isEasterEggActive]);
-  const submitVoteToBackend = useCallback(async (song, backendVoteValue) => {
-    return apiClient('/api/votes', {
-      method: 'POST',
-      body: JSON.stringify({
-        song,
-        vote_value: backendVoteValue,
-      }),
-    });
-  }, []);
-
-  const handleVoteFromNFC = async (voteValue, nfctagid) => {
-    // Prevent duplicate votes
-    if (hasVoted || isSubmitting) {
-      return;
-    }
-
-    // Ensure we have a song name (should always be set from initial state)
-    const activeSong = currentSong;
-    if (!activeSong) {
-      console.warn('No song available for voting');
-      setSubmissionError('No song is currently available for voting. Please try again shortly.');
-      return;
-    }
-
-    setSelectedVote(voteValue);
-    setIsSubmitting(true);
-    setSubmissionError(null);
-
-    // Get user UUID from Supabase session, or null if not logged in
-    let userId = null;
+  const ensureSessionActive = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      userId = session?.user?.id || null;
+      const current = await apiClient('/api/session');
+      if (current.active) {
+        setHasActiveSession(true);
+        setSessionInfo(current.data || null);
+        syncTimerFromSession(current.data);
+        return true;
+      }
+
+      const checkinResult = await apiClient('/api/checkin', { method: 'POST' });
+      if (checkinResult.success) {
+        setHasActiveSession(true);
+        setSessionInfo(checkinResult.data || null);
+        syncTimerFromSession(checkinResult.data);
+        return true;
+      }
     } catch (error) {
-      console.warn('Unable to get user session for vote', error);
-      userId = null;
+      console.error('Unable to refresh session:', error);
     }
+    setHasActiveSession(false);
+    return false;
+  }, [syncTimerFromSession]);
 
-    const backendVoteValue = voteValue === 0 ? -1 : 1;
-
-    if (userId) {
-      try {
-        await submitVoteToBackend(activeSong, backendVoteValue);
-      } catch (error) {
-        console.error('Failed to submit vote to backend:', error);
-        setSubmissionError('We could not submit your vote right now. Please try again.');
-        setIsSubmitting(false);
-        setSelectedVote(null);
+  const saveVote = async (rawVoteValue, nfctagid) => {
+    if (isSubmitting) return;
+    if (!hasActiveSession) {
+      const restored = await ensureSessionActive();
+      if (!restored) {
+        console.error('No active session');
         return;
       }
-    } else {
-      console.info('Guest vote submitted locally; backend submission skipped.');
     }
 
-    // Create vote record for local history/debugging
-    const voteRecord = {
-      id: `vote-${Date.now()}`,
-      user_id: userId,
-      song: activeSong,
-      vote_value: backendVoteValue, // -1 for thumbs down, 1 for thumbs up
-      vote_time: new Date().toISOString(),
-      nfctagid: nfctagid || null,
-      //client_vote_value: voteValue,
-    };
-
-    // Store locally for debugging purposes
-    const existingVotes = JSON.parse(localStorage.getItem('voteHistory') || '[]');
-    existingVotes.push(voteRecord);
-    localStorage.setItem('voteHistory', JSON.stringify(existingVotes));
-
-    console.log('Vote submitted:', voteRecord);
-
-    setHasVoted(true);
-    setIsSubmitting(false);
-
-    // Set flag in sessionStorage to allow access to confirmation page
-    sessionStorage.setItem('voteSubmitted', 'true');
-    sessionStorage.setItem('voteValue', voteValue.toString());
-    sessionStorage.setItem('voteSong', activeSong);
-    
-    // Clear URL parameters immediately
-    setSearchParams({});
-    
-    // Navigate to confirmation page immediately (no delay)
-    navigate(`/vote/${voteValue}`, { 
-      state: { song: activeSong, voteValue, nfctagid } 
-    });
-  };
-
-  // Handle NFC tag scanning via URL parameters
-  useEffect(() => {
-    if (isLoadingSong || !currentSong) {
+    const normalizedVote = Number(rawVoteValue);
+    if (Number.isNaN(normalizedVote)) {
+      console.warn('Vote ignored: invalid vote value', rawVoteValue);
       return;
     }
+    const isNegativeVote = normalizedVote <= 0;
+    const uiVoteValue = isNegativeVote ? 0 : 1;
+    const apiVoteValue = isNegativeVote ? -1 : 1;
 
-    const voteValueParam = searchParams.get('voteValue');
-    const nfctagid = searchParams.get('nfctagid');
-
-    // If NFC tag ID is provided, use it to determine vote value
-    if (nfctagid && NFC_TAG_MAPPING[nfctagid] !== undefined) {
-      const voteValue = NFC_TAG_MAPPING[nfctagid];
-      console.log(`NFC Tag detected: ${nfctagid} → Vote Value: ${voteValue}`);
-      setNfcTagDetected(nfctagid);
-      
-      // Auto-submit vote when NFC tag is detected (no need to wait for song load - it's already set)
-      if (!hasVoted && !isSubmitting) {
-        void handleVoteFromNFC(voteValue, nfctagid);
-      }
-    } 
-    // If voteValue is provided directly in URL
-    else if (voteValueParam && (voteValueParam === '0' || voteValueParam === '1')) {
-      const voteValue = parseInt(voteValueParam, 10);
-      console.log(`Vote value from URL: ${voteValue}`);
-      
-      if (!hasVoted && !isSubmitting) {
-        void handleVoteFromNFC(voteValue, nfctagid || 'direct-url');
-      }
+    let activeSong = (songName || currentSong || '').trim();
+    if (!activeSong) {
+      activeSong = 'Unknown track';
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, hasVoted, isSubmitting, isLoadingSong, currentSong]);
+    const backendSong = activeSong || 'Unknown track';
 
-  const handleVote = (voteValue) => {
-    void handleVoteFromNFC(voteValue, null);
+    setSelectedVote(uiVoteValue);
+    setIsSubmitting(true);
+
+    try {
+      await apiClient('/api/votes', {
+        method: 'POST',
+        body: JSON.stringify({
+          song: backendSong,
+          vote_value: apiVoteValue,
+          nfctagid: nfctagid || null,
+        }),
+      });
+      sessionStorage.setItem('voteSubmitted', 'true');
+      sessionStorage.setItem('voteValue', uiVoteValue.toString());
+      sessionStorage.setItem('voteSong', activeSong);
+      navigate(`/vote/${uiVoteValue}`, { state: { song: activeSong, voteValue: uiVoteValue, nfctagid } });
+    } catch (error) {
+      console.error('Vote failed:', error);
+      setSelectedVote(null);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   useEffect(() => {
-    if (!isAccountMenuOpen) {
-      return undefined;
-    }
+    if (!isAccountMenuOpen) return undefined;
 
     const handleClickOutside = (event) => {
       if (accountMenuRef.current && !accountMenuRef.current.contains(event.target)) {
@@ -370,7 +264,7 @@ const Vote = () => {
 
   const handleSignOut = async () => {
     try {
-      await supabase.auth.signOut();
+      await signOut();
     } catch (error) {
       console.error('Error signing out:', error);
     } finally {
@@ -379,252 +273,162 @@ const Vote = () => {
     }
   };
 
+  const trackLabel = (liveSongTitle || songName || currentSong || '').trim() || 'Loading track';
+  const displaySongTitle = useMemo(() => {
+    const formatted = trackLabel.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+    return formatted || 'Loading track';
+  }, [trackLabel]);
+  const liveSongTimestamp = useMemo(() => {
+    if (!liveSongUpdatedAt) return null;
+    try {
+      return new Date(liveSongUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return null;
+    }
+  }, [liveSongUpdatedAt]);
+  const formattedTimer = useMemo(() => {
+    if (timerSeconds === null) return '--:--';
+    const minutes = Math.floor(timerSeconds / 60);
+    const seconds = timerSeconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }, [timerSeconds]);
+
+  const minutesLabel = useMemo(() => {
+    if (timerSeconds === null) return '--';
+    return Math.max(0, Math.floor(timerSeconds / 60));
+  }, [timerSeconds]);
+
+  const timerProgress = useMemo(() => {
+    if (!sessionDurationSeconds || timerSeconds === null) {
+      return hasActiveSession ? 5 : 0;
+    }
+    const consumed = Math.max(0, sessionDurationSeconds - timerSeconds);
+    return Math.min(100, Math.max(0, (consumed / sessionDurationSeconds) * 100));
+  }, [sessionDurationSeconds, timerSeconds, hasActiveSession]);
+
+
   return (
-    <div className={styles['voting-page']}>
-      {isEasterEggActive && (
-        <div className={styles['easter-egg-overlay']}>
-          <div className={styles['easter-egg-backdrop']}></div>
-          <div className={styles['easter-egg-orbital']}>
-            <div className={styles['easter-egg-rings']}>
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
-            <img src={easterEggImage} alt="Hidden sound guy" className={styles['easter-egg-image']} />
-            <div className={styles['easter-egg-shine']}></div>
-            <div className={styles['easter-egg-sparkles']}>
-              {Array.from({ length: 8 }).map((_, index) => (
-                <span key={index}></span>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Animated Background Particles */}
-      <div className={styles['particle-field']}>
-        {[...Array(15)].map((_, i) => (
-          <div key={i} className={styles['particle']} style={{
-            '--delay': `${i * 0.08}s`,
-            '--duration': `${4 + (i % 4)}s`,
-            '--x': `${Math.random() * 100}%`,
-            '--y': `${Math.random() * 100}%`,
-          }}></div>
-        ))}
-      </div>
-
-      {/* Morphing Background Blobs */}
-      <div className={styles['background-blobs']}>
-        <div className={`${styles.blob} ${styles['blob-1']}`}></div>
-        <div className={`${styles.blob} ${styles['blob-2']}`}></div>
-      </div>
-
-      {/* Sound Wave Ripples around Record Player */}
-      <div className={styles['sound-waves']}>
-        <div className={styles['wave']}></div>
-        <div className={styles['wave']}></div>
-        <div className={styles['wave']}></div>
-      </div>
-
-      <div className={styles['voting-container']}>
-        <div className={styles['header-row']}>
-          <div className={styles['header-spacer']}></div>
-          {isLoggedIn && (
-            <div className={styles['account-wrapper']} ref={accountMenuRef}>
-              <button
-                type="button"
-                className={styles['account-button']}
-                onClick={() => setIsAccountMenuOpen((prev) => !prev)}
-                aria-expanded={isAccountMenuOpen}
-                aria-label="User menu"
-              >
-                <User size={22} />
-              </button>
-              {isAccountMenuOpen && (
-                <div className={styles['account-dropdown']}>
-                  <button type="button" onClick={handleSignOut} className={styles['account-action']}>
-                    <LogOut size={18} />
-                    <span>Sign out</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Header */}
-        <div className={styles['voting-header']}>
-          <div className={styles['voting-title-line']}></div>
-          <h1 className={styles['voting-title']}>
-            <span className={styles['title-word']}>Welcome </span>
-            <span className={styles['title-word']}>to </span>
-            <span className={styles['title-word']}>Sound </span>
-            <span className={styles['title-word']}>Guys</span>
-          </h1>
-          <div className={styles['voting-title-line']}></div>
-        </div>
-
-        {/* Currently Playing Card with Record Player */}
-        <div className={styles['song-card-container']}>
-          <div className={styles['song-card']}>
-            <div className={styles['card-glow']}></div>
-            <div className={styles['song-label']}>
-              <div className={styles['song-indicator']}></div>
-              <p className={styles['song-label-text']}>
-                Currently Playing
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-4 pb-10 pt-6 text-slate-100">
+      <div className="mx-auto flex w-full max-w-md flex-col gap-4">
+        <header className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+            <div>
+              <p className="text-3xl font-semibold text-white">Cosounds</p>
+              <p className="text-sm font-medium uppercase tracking-[0.3em] text-white/60">Connect through music.</p>
+              <p className="mt-2 text-[0.8rem] text-white/70">
+                Two taps teach the DJ. Every sticker press is reinforcement so the lounge keeps matching your crew.
               </p>
             </div>
-            <div className={styles['song-divider']}></div>
-            
-            {/* 3D Record Player */}
-            <div className={styles['record-player-wrapper']}>
-              <div className={styles['record-player-base']}>
-                {/* Turntable platter */}
-                <div className={styles['turntable-platter']}>
-                  {/* Spinning vinyl record */}
-                  <div className={styles['vinyl-record']}>
-                    {/* Record grooves */}
-                    <div className={styles['record-grooves']}>
-                      <div className={styles['groove']}></div>
-                      <div className={styles['groove']}></div>
-                      <div className={styles['groove']}></div>
-                      <div className={styles['groove']}></div>
-                      <div className={styles['groove']}></div>
-                    </div>
-                    {/* Light reflections */}
-                    <div className={styles['record-reflection']}></div>
-                    <div className={styles['record-reflection-2']}></div>
-
-                    {/* Center label with spinning gradient */}
-                    <div className={styles['record-center']}>
-                      <div className={styles['record-center-gradient']}></div>
-                      <div className={styles['record-center-hole']}></div>
-                    </div>
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <span
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                hasActiveSession ? 'bg-emerald-500/20 text-emerald-200' : 'bg-slate-600/40 text-slate-200'
+              }`}
+            >
+              Vibe pass {hasActiveSession ? 'on' : 'off'}
+            </span>
+            <div className="flex items-center gap-2">
+              <div className="relative" ref={accountMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsAccountMenuOpen((prev) => !prev)}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white"
+                  aria-expanded={isAccountMenuOpen}
+                  aria-label="User menu"
+                >
+                  <User size={18} />
+                </button>
+                {isAccountMenuOpen && (
+                  <div className="absolute right-0 top-12 w-40 rounded-2xl border border-white/10 bg-slate-900/90 p-1 text-sm shadow-lg">
+                    <button
+                      type="button"
+                      onClick={handleSignOut}
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-white/80 hover:bg-white/5"
+                    >
+                      <LogOut size={16} />
+                      Sign out
+                    </button>
                   </div>
-                </div>
+                )}
               </div>
             </div>
-            
-            {/* Song name below record player */}
-            <p className={styles['song-name']}>
-              {isLoadingSong
-                ? 'Loading current track...'
-                : currentSong || songError || 'No track available'}
-            </p>
           </div>
-        </div>
+        </header>
 
-        {/* Rating Section - Only show on web */}
-        {!isMobile && (
-          <>
-            <div className={styles['rating-section']}>
-              <p className={styles['rating-prompt']}>
-                <span className={styles['prompt-word']}>Rate</span>
-                <span className={styles['prompt-word']}>the</span>
-                <span className={styles['prompt-word']}>song</span>
-                <span className={styles['prompt-word']}>that's</span>
-                <span className={styles['prompt-word']}>playing</span>
-                <span className={styles['prompt-word']}>now</span>
+        <section className="rounded-3xl border border-white/10 bg-white/5 p-5 text-center">
+          <p className="text-[0.65rem] uppercase tracking-[0.35em] text-white/60">Vibe timer</p>
+          <div className="mt-2 text-4xl font-semibold">{formattedTimer}</div>
+          <p className="mt-1 text-sm text-white/70">{minutesLabel} minutes of hang time left</p>
+          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+            <span
+              className="block h-full rounded-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-400 transition-all"
+              style={{ width: `${timerProgress}%` }}
+            />
+          </div>
+          <p className="mt-3 text-xs text-white/70">
+            {hasActiveSession
+              ? 'Need more time? Tap a sticker again and the algorithm keeps listening to you.'
+              : "Timer paused. Tap any sticker so the model knows you're here."}
+          </p>
+        </section>
+
+        <section className="rounded-3xl border border-white/10 bg-white/5 p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1">
+              <p className="text-[0.65rem] uppercase tracking-[0.35em] text-white/60">Now playing</p>
+              <h1 className="mt-1 text-2xl font-semibold text-white">{displaySongTitle}</h1>
+              <p className="mt-2 text-sm text-white/70">
+                {liveSongTimestamp ? `Updated ${liveSongTimestamp}` : 'Waiting for the DJ to push a new track.'}
               </p>
             </div>
-
-            {/* Thumbs Up/Down Buttons - Web only */}
-            <div className={styles['vote-buttons-container']}>
-              <button
-                onClick={() => handleVote(0)}
-                disabled={hasVoted || isSubmitting || isLoadingSong || !currentSong}
-                className={`
-                  ${styles['thumbs-button']} ${styles['thumbs-down']}
-                  ${selectedVote === 0 ? styles.selected : ''}
-                  ${hasVoted ? styles['vote-button-disabled'] : ''}
-                `}
-              >
-                <div className={styles['button-icon-wrapper']}>
-                  <ThumbsDown size={48} />
-                </div>
-                <div className={styles['button-shine']}></div>
-              </button>
-              
-              <button
-                onClick={() => handleVote(1)}
-                disabled={hasVoted || isSubmitting || isLoadingSong || !currentSong}
-                className={`
-                  ${styles['thumbs-button']} ${styles['thumbs-up']}
-                  ${selectedVote === 1 ? styles.selected : ''}
-                  ${hasVoted ? styles['vote-button-disabled'] : ''}
-                `}
-              >
-                <div className={styles['button-icon-wrapper']}>
-                  <ThumbsUp size={48} />
-                </div>
-                <div className={styles['button-shine']}></div>
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* Mobile message */}
-        {isMobile && (
-          <div className={styles['mobile-message']}>
-            <p className={styles['mobile-text']}>
-              Use NFC stickers to vote
-            </p>
-            {nfcTagDetected && (
-              <div className={styles['nfc-status']}>
-                <p className={styles['nfc-status-text']}>
-                  NFC Tag {nfcTagDetected} detected
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Status Messages */}
-        {isSubmitting && (
-          <div className={styles['status-container']}>
-            <div className={styles['status-loading']}>
-              <div className={styles['status-spinner']}></div>
-              <p className={styles['status-loading-text']}>
-                Submitting your vote...
-              </p>
-            </div>
-          </div>
-        )}
-
-        {isLoadingSong && (
-          <div className={styles['status-container']}>
-            <div className={styles['status-loading']} style={{color: '#6b7280'}}>
-              <div className={styles['status-spinner']}></div>
-              <p className={styles['status-loading-text']}>
-                Loading song information...
-              </p>
-            </div>
-          </div>
-        )}
-
-        {songError && !isLoadingSong && (
-          <div className={styles['status-container']}>
-            <div className={styles['status-loading']} style={{ color: '#9ca3af' }}>
-              <p className={styles['status-loading-text']}>{songError}</p>
-            </div>
-          </div>
-        )}
-
-        {submissionError && (
-          <div className={styles['status-container']}>
-            <div className={styles['status-loading']} style={{ color: '#f87171' }}>
+            <div className="h-20 w-20 rounded-full bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 p-3 shadow-inner shadow-black/50">
               <div
-                className={styles['status-spinner']}
-                style={{ borderTopColor: '#f87171', borderRightColor: 'transparent' }}
-              ></div>
-              <p className={styles['status-loading-text']}>{submissionError}</p>
+                className="record-spin relative flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-slate-950"
+                style={{
+                  background: 'radial-gradient(circle, #0f172a 25%, #020617 70%)',
+                }}
+              >
+                <div
+                  className="absolute inset-1 rounded-full opacity-30"
+                  style={{
+                    background:
+                      'repeating-radial-gradient(circle, rgba(255,255,255,0.08) 0, rgba(255,255,255,0.08) 2px, transparent 3px, transparent 6px)',
+                  }}
+                />
+                <span className="absolute top-2 left-1/2 h-3 w-0.5 -translate-x-1/2 rounded-full bg-white/50" />
+                <div className="relative z-10 h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 shadow-lg shadow-blue-900/50" />
+              </div>
             </div>
           </div>
-        )}
+          <p className="mt-4 text-xs text-white/60">
+            Tap a sticker to reinforce or redirect this track—every ping updates the playlist model.
+          </p>
+        </section>
+
+        <section className="rounded-3xl border border-white/10 bg-white/5 p-5">
+          <div>
+            <p className="text-[0.65rem] uppercase tracking-[0.35em] text-white/60">Tap a sticker</p>
+            <h2 className="mt-1 text-xl font-semibold text-white">Two taps, personalized experience</h2>
+          </div>
+          <div className="mt-4 flex flex-col gap-3">
+            <div className="rounded-2xl bg-emerald-500/15 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.3em] text-emerald-100">Green sticker</p>
+              <p className="text-lg font-semibold text-white">Keep this vibe going</p>
+              <p className="text-sm text-emerald-50">Positive reward = algorithm plays more like this.</p>
+            </div>
+            <div className="rounded-2xl bg-rose-500/15 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.3em] text-rose-100">Red sticker</p>
+              <p className="text-lg font-semibold text-white">Not feeling it</p>
+              <p className="text-sm text-rose-50">Negative reward = the model explores fresh textures.</p>
+            </div>
+          </div>
+          <p className="mt-4 text-xs text-white/70">
+            Phones buzz when the tap lands. Every ping is a reinforcement signal our DJ learns from.
+          </p>
+        </section>
+
       </div>
     </div>
   );
 };
 
 export default Vote;
-

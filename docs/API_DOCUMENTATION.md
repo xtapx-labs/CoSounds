@@ -101,20 +101,10 @@ Send any JSON object with your preference data. The entire object will be stored
 
 ```json
 {
-  "soundType": "nature",
-  "volume": 0.75,
-  "mood": "calm",
-  "tempo": "slow",
-  "instruments": ["piano", "ambient"],
-  "environmentalSounds": ["rain", "ocean"],
-  "customSettings": {
-    "rainIntensity": 0.6,
-    "birdSounds": true
-  }
+[0,0,0,0,0]
 }
 ```
 
-**Note:** You can structure the preference object however you want. All fields are flexible.
 
 **Success Response (200):**
 

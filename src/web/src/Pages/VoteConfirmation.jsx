@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { ThumbsUp, ThumbsDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -13,8 +13,8 @@ const VoteConfirmation = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [isFetchingSong, setIsFetchingSong] = useState(false);
-  const [songError, setSongError] = useState(null);
+  const voteSubmitRef = useRef(false);
+  const songChangeRef = useRef(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -23,28 +23,6 @@ const VoteConfirmation = () => {
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  const fetchCurrentSong = useCallback(async () => {
-    setIsFetchingSong(true);
-    setSongError(null);
-    try {
-      const response = await apiClient('/api/model/currentSong');
-      if (response?.current_song) {
-        setSong(response.current_song);
-      } else {
-        setSongError('No song information available.');
-      }
-    } catch (error) {
-      if (error.status === 404) {
-        setSongError('No song is currently playing.');
-      } else {
-        setSongError(error.message || 'Failed to fetch current song.');
-      }
-      console.error('Failed to fetch current song:', error);
-    } finally {
-      setIsFetchingSong(false);
-    }
   }, []);
 
   useEffect(() => {
@@ -78,25 +56,56 @@ const VoteConfirmation = () => {
       return;
     }
 
-    // Check if user came from voting (prevent direct URL access)
-    const voteSubmitted = sessionStorage.getItem('voteSubmitted');
-    const storedVoteValue = sessionStorage.getItem('voteValue');
-    
-    // If no vote was submitted or voteValue doesn't match, redirect to vote page
-    if (!voteSubmitted || storedVoteValue !== voteValue) {
-      navigate('/vote', { replace: true });
+    // Check if vote already submitted
+    if (voteSubmitRef.current) {
       return;
     }
 
-    // Get song from location state or sessionStorage if available
-    const storedSong = location.state?.song || sessionStorage.getItem('voteSong');
+    const submitVoteOnLoad = async () => {
+      voteSubmitRef.current = true;
 
-    if (storedSong) {
-      setSong(storedSong);
-    } else if (!song && !isFetchingSong) {
-      fetchCurrentSong();
-    }
-  }, [location.state, voteValue, navigate, fetchCurrentSong, isFetchingSong, song]);
+      try {
+        // Ensure active session exists
+        const sessionCheck = await apiClient('/api/session');
+        if (!sessionCheck.active) {
+          console.log('No active session, creating one...');
+          await apiClient('/api/checkin', { method: 'POST' });
+        }
+
+        // Get current song from location state, sessionStorage, or API
+        let songToVote = location.state?.song || sessionStorage.getItem('voteSong');
+
+        if (!songToVote) {
+          try {
+            const songResponse = await apiClient('/api/current-song');
+            songToVote = songResponse?.data?.song || 'Unknown track';
+          } catch (err) {
+            console.warn('Could not fetch current song, using fallback');
+            songToVote = 'Unknown track';
+          }
+        }
+
+        setSong(songToVote);
+
+        // Submit vote
+        const numericVote = voteValue === '0' ? -1 : 1;
+        await apiClient('/api/votes', {
+          method: 'POST',
+          body: JSON.stringify({
+            song: songToVote,
+            vote_value: numericVote,
+            nfctagid: 'direct-url',
+          }),
+        });
+
+        console.log(`✅ Vote submitted: ${numericVote} for "${songToVote}"`);
+      } catch (error) {
+        console.error('❌ Vote submission failed:', error);
+      }
+    };
+
+    submitVoteOnLoad();
+  }, [voteValue, navigate, location.state]);
 
   const isPositive = voteValue === '1';
 
@@ -181,7 +190,7 @@ const VoteConfirmation = () => {
             <div className={styles['song-border-animation']}></div>
             <p className={styles['song-label']}>Song:</p>
             <p className={styles['song-name']}>
-              {song || (isFetchingSong ? 'Loading current song...' : songError || 'Unknown song')}
+              {song || 'Loading...'}
             </p>
           </div>
 

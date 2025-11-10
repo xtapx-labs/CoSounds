@@ -136,35 +136,7 @@ export const Login = () => {
             By signing in, you agree to our terms of service
           </p>
 
-          {/* Clear Cache Button */}
-          <button
-            onClick={handleClearCache}
-            disabled={isClearing}
-            style={{
-              marginTop: '12px',
-              padding: '8px 16px',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '8px',
-              color: 'rgba(255, 255, 255, 0.6)',
-              fontSize: '12px',
-              cursor: isClearing ? 'not-allowed' : 'pointer',
-              opacity: isClearing ? 0.5 : 1,
-              transition: 'all 0.2s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (!isClearing) {
-                e.target.style.background = 'rgba(255, 255, 255, 0.08)';
-                e.target.style.color = 'rgba(255, 255, 255, 0.9)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = 'rgba(255, 255, 255, 0.05)';
-              e.target.style.color = 'rgba(255, 255, 255, 0.6)';
-            }}
-          >
-            {isClearing ? '🔄 Clearing...' : '🗑️ Clear Cache & Session'}
-          </button>
+          
         </div>
 
         {/* Decorative Elements */}
