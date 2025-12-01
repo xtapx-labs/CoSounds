@@ -323,7 +323,7 @@ const Vote = () => {
         <header className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur">
             <div>
               <p className="text-xl font-medium uppercase tracking-[0.2em] text-white">Cosounds</p>
-              <p className="text-xl font-semibold text-white/60">Connect through music.</p>
+              <p className="text-xl font-semibold text-white/60">Connect through Sounds.</p>
               <p className="mt-2 text-[0.8rem] text-white/70">
                 Tap the green or red stickers to shape what plays next. 
 The more you vote, the better your music gets.
@@ -430,9 +430,7 @@ The more you vote, the better your music gets.
               <p className="text-sm text-rose-50">Negative reward = the model explores fresh textures.</p>
             </div>
           </div>
-          <p className="mt-4 text-xs text-white/70">
-            Phones buzz when the tap lands. Every ping is a reinforcement signal our DJ learns from.
-          </p>
+
         </section>
 
       </div>
