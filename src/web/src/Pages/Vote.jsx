@@ -1,8 +1,86 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, LogOut } from 'lucide-react';
+import { User, LogOut, Bluetooth, Check, X, RefreshCw } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { apiClient } from '../lib/apt';
+import { supabase } from '../lib/supabase';
+
+// Django Bluetooth Presence Detection Configuration
+const DJANGO_API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000/api';
+const LAPTOP_BLUETOOTH_MAC = import.meta.env.VITE_LAPTOP_BLUETOOTH_MAC || '';
+const ENABLE_BLUETOOTH_PRESENCE = !!LAPTOP_BLUETOOTH_MAC;
+
+/**
+ * Handle Bluetooth presence detection when user checks in.
+ * Registers device on first visit, checks in on subsequent visits.
+ */
+const handleBluetoothPresence = async () => {
+  if (!ENABLE_BLUETOOTH_PRESENCE) return;
+
+  try {
+    const session = await supabase.auth.getSession();
+    const token = session.data.session?.access_token;
+
+    if (!token) {
+      console.warn('⚠️  No auth token available for Bluetooth presence');
+      return;
+    }
+
+    // Step 1: Check if device is already registered
+    const statusResponse = await fetch(`${DJANGO_API_URL}/my-status`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!statusResponse.ok) {
+      console.warn('⚠️  Failed to check Bluetooth device status');
+      return;
+    }
+
+    const status = await statusResponse.json();
+
+    if (!status.has_device) {
+      // FIRST TIME - Register device
+      console.log('🔵 Registering Bluetooth device for presence detection...');
+      const registerResponse = await fetch(`${DJANGO_API_URL}/register-device`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          device_mac: LAPTOP_BLUETOOTH_MAC,
+          device_name: 'Demo Laptop'
+        })
+      });
+
+      if (registerResponse.ok) {
+        const result = await registerResponse.json();
+        console.log('✅ Bluetooth device registered:', result);
+      } else {
+        console.warn('⚠️  Device registration failed');
+      }
+    } else {
+      // ALREADY REGISTERED - Check in
+      console.log('🔵 Checking in with Bluetooth presence system...');
+      const checkinResponse = await fetch(`${DJANGO_API_URL}/check-in`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (checkinResponse.ok) {
+        const result = await checkinResponse.json();
+        console.log('✅ Bluetooth presence check-in successful:', result);
+      } else {
+        console.warn('⚠️  Bluetooth check-in failed');
+      }
+    }
+  } catch (error) {
+    console.error('❌ Bluetooth presence error:', error);
+  }
+};
 
 const formatSongTitle = (title = '') =>
   title
@@ -27,6 +105,19 @@ const Vote = () => {
   const [sessionInfo, setSessionInfo] = useState(null);
   const [timerSeconds, setTimerSeconds] = useState(null);
   const [sessionDurationSeconds, setSessionDurationSeconds] = useState(null);
+
+  // Bluetooth state
+  const [isBluetoothMenuOpen, setIsBluetoothMenuOpen] = useState(false);
+  const [isBluetoothSupported, setIsBluetoothSupported] = useState(false);
+  const [isBluetoothConnected, setIsBluetoothConnected] = useState(false);
+  const [isBluetoothPairing, setIsBluetoothPairing] = useState(false);
+  const [bluetoothDeviceName, setBluetoothDeviceName] = useState(null);
+  const [bluetoothDeviceId, setBluetoothDeviceId] = useState(null);
+  const [bluetoothError, setBluetoothError] = useState(null);
+  const [requiresBluetoothTap, setRequiresBluetoothTap] = useState(false);
+  const [isBluetoothAutoReconnecting, setIsBluetoothAutoReconnecting] = useState(false);
+  const [bluetoothEnabled, setBluetoothEnabled] = useState(false);
+  const bluetoothMenuRef = useRef(null);
 
   const fetchCurrentSong = useCallback(async (showSpinner = false) => {
     if (showSpinner) setIsLoadingSong(true);
@@ -125,6 +216,8 @@ const Vote = () => {
             setHasActiveSession(true);
             setSessionInfo(checkinResult.data || null);
             syncTimerFromSession(checkinResult.data);
+            // Register/check-in with Bluetooth presence system
+            handleBluetoothPresence();
           } else {
             setSessionInfo(null);
             syncTimerFromSession(null);
@@ -190,6 +283,8 @@ const Vote = () => {
         setHasActiveSession(true);
         setSessionInfo(checkinResult.data || null);
         syncTimerFromSession(checkinResult.data);
+        // Register/check-in with Bluetooth presence system
+        handleBluetoothPresence();
         return true;
       }
     } catch (error) {
@@ -208,6 +303,70 @@ const Vote = () => {
         return;
       }
     }
+
+    // === BLUETOOTH PRESENCE DETECTION ===
+    // Register device or check-in when user taps NFC
+    if (ENABLE_BLUETOOTH_PRESENCE) {
+      try {
+        const session = await supabase.auth.getSession();
+        const token = session.data.session?.access_token;
+
+        if (token) {
+          // Step 1: Check if device is already registered
+          const statusResponse = await fetch(`${DJANGO_API_URL}/my-status`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+          if (statusResponse.ok) {
+            const status = await statusResponse.json();
+
+            if (!status.has_device) {
+              // FIRST TIME - Register device
+              console.log('🔵 Registering Bluetooth device...');
+              const registerResponse = await fetch(`${DJANGO_API_URL}/register-device`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                  device_mac: LAPTOP_BLUETOOTH_MAC,
+                  device_name: 'Demo Laptop'
+                })
+              });
+
+              if (registerResponse.ok) {
+                const result = await registerResponse.json();
+                console.log('✅ Bluetooth device registered:', result);
+              } else {
+                console.warn('⚠️  Device registration failed');
+              }
+            } else {
+              // ALREADY REGISTERED - Check in
+              console.log('🔵 Checking in with Bluetooth presence...');
+              const checkinResponse = await fetch(`${DJANGO_API_URL}/check-in`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+
+              if (checkinResponse.ok) {
+                const result = await checkinResponse.json();
+                console.log('✅ Checked in:', result);
+              } else {
+                console.warn('⚠️  Check-in failed');
+              }
+            }
+          }
+        }
+      } catch (error) {
+        // Don't block voting if Bluetooth presence fails
+        console.error('Bluetooth presence detection error:', error);
+      }
+    }
+    // === END BLUETOOTH PRESENCE DETECTION ===
 
     const normalizedVote = Number(rawVoteValue);
     if (Number.isNaN(normalizedVote)) {
@@ -316,6 +475,103 @@ const Vote = () => {
     return Math.min(100, Math.max(0, (consumed / sessionDurationSeconds) * 100));
   }, [sessionDurationSeconds, timerSeconds, hasActiveSession]);
 
+  // Bluetooth beacon detection constants
+  const BEACON_NAME = 'SoundGuys Beacon';
+  const BEACON_UUID = '19b10000-e8f2-537e-4f6c-d104768a1214';
+  const DJANGO_API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000/api';
+  const SCAN_INTERVAL = 5000; // 5 seconds
+
+  // Check Web Bluetooth API support
+  useEffect(() => {
+    if (navigator.bluetooth) {
+      setIsBluetoothSupported(true);
+    } else {
+      setBluetoothError('Web Bluetooth API not supported in this browser');
+      console.warn('Web Bluetooth API not supported');
+    }
+  }, []);
+
+  // Scan for beacon and report to Django
+  const scanForBeacon = useCallback(async () => {
+    if (!bluetoothEnabled || !isBluetoothSupported) return;
+
+    try {
+      // Request device (scans for nearby devices)
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [{ name: BEACON_NAME }],
+        optionalServices: [BEACON_UUID]
+      });
+
+      if (device && device.name === BEACON_NAME) {
+        // Beacon detected! Report to Django
+        setIsBluetoothConnected(true);
+        setBluetoothDeviceName(device.name);
+        setBluetoothDeviceId(device.id);
+        setBluetoothError(null);
+
+        const session = await supabase.auth.getSession();
+        const token = session.data.session?.access_token;
+
+        if (token) {
+          const response = await fetch(`${DJANGO_API_URL}/beacon-detected`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ beacon_name: BEACON_NAME })
+          });
+
+          const result = await response.json();
+          if (result.success) {
+            console.log('✅ Beacon detected and reported to Django:', result.status);
+          } else {
+            console.error('Failed to report beacon detection:', result.error);
+          }
+        }
+      }
+    } catch (error) {
+      // User canceled or beacon not found
+      if (error.name === 'NotFoundError') {
+        console.log('Beacon not in range');
+        setIsBluetoothConnected(false);
+      } else if (error.name === 'NotAllowedError') {
+        console.log('Bluetooth permission denied');
+        setBluetoothError('Bluetooth permission denied');
+        setBluetoothEnabled(false);
+      } else {
+        console.error('Bluetooth error:', error);
+        setBluetoothError(error.message);
+      }
+    }
+  }, [bluetoothEnabled, isBluetoothSupported, BEACON_NAME, BEACON_UUID, DJANGO_API_URL]);
+
+  // Poll for beacon every 5 seconds when enabled
+  useEffect(() => {
+    if (!bluetoothEnabled || !isBluetoothSupported) return undefined;
+
+    // Initial scan
+    scanForBeacon();
+
+    // Set up interval for subsequent scans
+    const interval = setInterval(() => {
+      scanForBeacon();
+    }, SCAN_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, [bluetoothEnabled, isBluetoothSupported, scanForBeacon, SCAN_INTERVAL]);
+
+  // Handle Bluetooth toggle
+  const handleBluetoothToggle = useCallback(() => {
+    if (!isBluetoothSupported) {
+      setBluetoothError('Web Bluetooth API not supported in this browser');
+      return;
+    }
+    setBluetoothEnabled(!bluetoothEnabled);
+    if (!bluetoothEnabled) {
+      setBluetoothError(null);
+    }
+  }, [isBluetoothSupported, bluetoothEnabled]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-4 pb-10 pt-6 text-slate-100">
@@ -338,6 +594,23 @@ The more you vote, the better your music gets.
               Vibe pass {hasActiveSession ? 'on' : 'off'}
             </span>
             <div className="flex items-center gap-2">
+              {/* Bluetooth button */}
+              <button
+                type="button"
+                onClick={handleBluetoothToggle}
+                className={`flex h-10 w-10 items-center justify-center rounded-full border ${
+                  isBluetoothConnected
+                    ? 'border-green-500 bg-green-500/20 text-green-400'
+                    : bluetoothEnabled
+                    ? 'border-blue-500 bg-blue-500/20 text-blue-400'
+                    : 'border-white/15 bg-white/10 text-white'
+                }`}
+                aria-label={bluetoothEnabled ? 'Disable Bluetooth' : 'Enable Bluetooth'}
+                title={isBluetoothConnected ? 'Connected to beacon' : bluetoothEnabled ? 'Scanning for beacon...' : 'Enable Bluetooth'}
+              >
+                <Bluetooth size={18} />
+              </button>
+
               <div className="relative" ref={accountMenuRef}>
                 <button
                   type="button"
