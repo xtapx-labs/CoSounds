@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 from io import BytesIO
 import base64
-from typing import Dict, List, Tuple
+from typing import Dict
 from .services import get_all_devices, get_sessions_in_range
 
 
@@ -59,7 +59,7 @@ def calculate_device_statistics() -> Dict:
     return stats
 
 
-def generate_weekly_session_chart(days: int = 7) -> str:
+def generate_status_pie_chart() -> str:
     """
     Generate a bar chart of sessions per day using matplotlib
     
