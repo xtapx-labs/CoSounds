@@ -417,14 +417,11 @@ def analytics_charts(request):
         }
     """
     try:
-        days = int(request.GET.get('days', 7))
-        session_limit = int(request.GET.get('session_limit', 20))
+        limit = int(request.GET.get('limit', 10))
         
         charts = {
-            'weekly_sessions': analytics.generate_weekly_session_chart(days=days),
-            'rssi_distribution': analytics.generate_rssi_distribution_chart(),
-            'session_durations': analytics.generate_session_duration_chart(limit=session_limit),
-            'status_pie': analytics.generate_status_pie_chart()
+            'status_pie': analytics.generate_status_pie_chart(),
+            'session_durations': analytics.generate_session_durations_chart(limit=limit)
         }
         
         return JsonResponse({
@@ -460,20 +457,15 @@ def analytics_chart(request, chart_type):
         }
     """
     try:
-        if chart_type == 'weekly':
-            days = int(request.GET.get('days', 7))
-            chart = analytics.generate_weekly_session_chart(days=days)
-        elif chart_type == 'rssi':
-            chart = analytics.generate_rssi_distribution_chart()
-        elif chart_type == 'duration':
-            limit = int(request.GET.get('limit', 20))
-            chart = analytics.generate_session_duration_chart(limit=limit)
-        elif chart_type == 'status':
+        if chart_type == 'status':
             chart = analytics.generate_status_pie_chart()
+        elif chart_type == 'durations':
+            limit = int(request.GET.get('limit', 10))
+            chart = analytics.generate_session_durations_chart(limit=limit)
         else:
             return JsonResponse({
                 'success': False,
-                'error': f'Unknown chart type: {chart_type}. Valid types: weekly, rssi, duration, status'
+                'error': f'Unknown chart type: {chart_type}. Valid types: status, durations'
             }, status=400)
         
         return JsonResponse({

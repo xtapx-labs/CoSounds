@@ -174,7 +174,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Charts Row - Real Matplotlib Images from Django */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
           {/* Device Status Pie Chart */}
           <div className="bg-gray-800 rounded-lg p-6">
             <h2 className="text-2xl font-bold mb-4">🥧 Device Status (Matplotlib)</h2>
@@ -191,21 +191,7 @@ export default function AdminDashboard() {
             )}
           </div>
 
-          {/* Session Durations Chart */}
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h2 className="text-2xl font-bold mb-4">⏱️ Recent Session Durations</h2>
-            {charts.durationsChart ? (
-              <img 
-                src={charts.durationsChart} 
-                alt="Session Durations Chart" 
-                className="w-full rounded"
-              />
-            ) : (
-              <div className="h-64 flex items-center justify-center text-gray-400">
-                Loading chart from Django...
-              </div>
-            )}
-          </div>
+
         </div>
 
         {/* Devices Table */}
