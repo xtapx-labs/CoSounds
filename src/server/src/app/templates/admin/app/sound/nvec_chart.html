@@ -1,0 +1,32 @@
+<div style="width: 400px; height: 400px; margin: 0 auto;">
+    <canvas id="{{ chart_id|default:'nvecChart' }}"></canvas>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var el = document.getElementById('{{ chart_id|default:"nvecChart" }}');
+        if (!el) return;
+        var ctx = el.getContext('2d');
+        var data = {{ nvec_data|safe }};
+        var myChart = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: ['Rain', 'Sea Waves', 'Thunderstorm', 'Wind', 'Crackling Fire'],
+                datasets: [{
+                    label: 'Natural Vector',
+                    data: [data.rain, data.sea_waves, data.thunderstorm, data.wind, data.crackling_fire],
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 3
+                }]
+            },
+            options: {
+                scales: {
+                    r: {
+                        suggestedMin: 0,
+                        suggestedMax: 1
+                    }
+                }
+            }
+        });
+    });
+</script>
