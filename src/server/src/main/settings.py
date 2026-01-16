@@ -6,6 +6,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
+import dj_database_url
 
 
 def get_local_ip():
@@ -25,11 +26,18 @@ LOCAL_IP = get_local_ip()
 
 os.environ["DJANGO_RUNSERVER_HIDE_WARNING"] = "true"
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-secret-key")
-DEBUG = os.getenv("DEBUG", "True") == "True"
 load_dotenv(BASE_DIR.parent.parent / "env" / ".env")
+
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.environ.get("SECRET_KEY", default="django-insecure-secret-key")
+
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = "RENDER" not in os.environ
+
+ALLOWED_HOSTS = []
+
 if DEBUG:
-    ALLOWED_HOSTS = [
+    ALLOWED_HOSTS.extend([
         "localhost",
         "127.0.0.1",
         "0.0.0.0",
@@ -38,9 +46,17 @@ if DEBUG:
         "0.0.0.0:5173",
         LOCAL_IP,
         f"{LOCAL_IP}:5173",
-    ]
+    ])
 else:
-    ALLOWED_HOSTS = str(os.getenv("PROD_HOSTS", default=["*"])).split(",")
+    # Production hosts from env
+    prod_hosts = os.environ.get("PROD_HOSTS", "")
+    if prod_hosts:
+        ALLOWED_HOSTS.extend(prod_hosts.split(","))
+
+# Render provides this environment variable automatically
+RENDER_EXTERNAL_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -115,6 +131,7 @@ INSTALLED_APPS = [
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -173,11 +190,18 @@ STORAGES = {
     },
 }
 
+# Production static files configuration
+if not DEBUG:
+    STORAGES["staticfiles"] = {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    }
+
 # django-file-form S3 upload configuration
 FILE_FORM_UPLOAD_DIR = "file-form-uploads"
 
-STATIC_ROOT = BASE_DIR / "static"
-STATIC_URL = "static/"
+# Tell Django to copy static assets into a path called `staticfiles` (for Render)
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_URL = "/static/"
 MEDIA_URL = f"https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/"
 
 STATICFILES_DIRS = [
@@ -206,11 +230,14 @@ AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
+# Database configuration
+# https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default": dj_database_url.config(
+        # For local development, you can use SQLite or a local PostgreSQL
+        default="sqlite:///" + str(BASE_DIR / "db.sqlite3"),
+        conn_max_age=600,
+    )
 }
 TASKS = {
     "default": {

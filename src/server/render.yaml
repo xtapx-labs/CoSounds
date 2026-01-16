@@ -1,0 +1,34 @@
+databases:
+  - name: cosounds-db
+    plan: free
+    databaseName: cosounds
+    user: cosounds
+
+services:
+  - type: web
+    plan: free
+    name: cosounds
+    runtime: python
+    rootDir: src/server
+    buildCommand: './build.sh'
+    startCommand: 'cd src && python -m gunicorn main.asgi:application -k uvicorn.workers.UvicornWorker'
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cosounds-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: WEB_CONCURRENCY
+        value: 4
+      - key: PYTHON_VERSION
+        value: 3.13.1
+      # Add your AWS credentials as secrets in Render Dashboard
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_STORAGE_BUCKET_NAME
+        sync: false
+      - key: AWS_S3_REGION_NAME
+        sync: false
