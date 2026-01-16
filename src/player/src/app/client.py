@@ -114,8 +114,38 @@ def download_sound(sound: dict, client_token: str):
         )
         sound_resp.raise_for_status()  # Raise Exception if not HTTP 200
         os.makedirs(MEDIA_PATH, exist_ok=True)
-        with open(local_path, "wb") as f:
+
+        # Save original file temporarily
+        temp_path = local_path + "_temp"
+        with open(temp_path, "wb") as f:
             f.write(sound_resp.content)
+
+        # Convert to MP3 using ffmpeg for pygame compatibility
+        import subprocess
+
+        final_path = local_path + ".mp3"
+        try:
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    temp_path,
+                    "-acodec",
+                    "libmp3lame",
+                    "-q:a",
+                    "2",
+                    final_path,
+                ],
+                check=True,
+                capture_output=True,
+            )
+            os.remove(temp_path)  # Remove temp file after conversion
+            local_path = final_path
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            # ffmpeg not available or failed, use original file
+            os.rename(temp_path, local_path)
+
         local_path = os.path.abspath(local_path)
         manifest[remote_id] = {
             "path": local_path,
@@ -127,7 +157,6 @@ def download_sound(sound: dict, client_token: str):
 
 def get_library(client_token: str, player_token: str):
 
-    shutil.rmtree(MEDIA_PATH) if os.path.isdir(MEDIA_PATH) else None
     os.remove(MANIFEST_PATH) if os.path.exists(MANIFEST_PATH) else None
     with open(MANIFEST_PATH, "w") as f:
         manifest = {}
@@ -147,6 +176,15 @@ def get_library(client_token: str, player_token: str):
     typer.secho("\nLibrary Downloaded Locally! ✅\n", fg=typer.colors.GREEN, bold=True)
 
 
+def check_media() -> bool:
+    """Check if the media folder exists and contains files."""
+    if not MEDIA_PATH.exists():
+        return False
+    # Check for any files (not directories) in the media folder
+    files = [f for f in MEDIA_PATH.iterdir() if f.is_file()]
+    return len(files) > 0
+
+
 def get_cosound(client_token: str, player_token: str):
 
     cosound_resp = requests.get(
@@ -155,7 +193,32 @@ def get_cosound(client_token: str, player_token: str):
         timeout=15,
     )
     cosound_resp.raise_for_status()
-    for sound in cosound_resp.json()["sounds"]:
-        download_sound(sound, client_token)
+    cosound_data = cosound_resp.json()
 
-    return cosound_resp.json()["gain"]
+    # Download soundscapes
+    soundscapes_with_gain = []
+    for soundscape in cosound_data.get("soundscapes", []):
+        download_sound(soundscape, client_token)
+        soundscapes_with_gain.append(
+            {
+                "id": soundscape["id"],
+                "gain": soundscape.get("gain", {"global": 1.0}),
+            }
+        )
+
+    # Download instrumentals
+    instrumentals_with_gain = []
+    for instrumental in cosound_data.get("instrumental", []):
+        download_sound(instrumental, client_token)
+        instrumentals_with_gain.append(
+            {
+                "id": instrumental["id"],
+                "gain": instrumental.get("gain", {"global": 1.0}),
+            }
+        )
+
+    return {
+        "soundscapes": soundscapes_with_gain,
+        "instrumental": instrumentals_with_gain,
+        "timestamp": cosound_data.get("timestamp"),
+    }

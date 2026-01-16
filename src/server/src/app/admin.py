@@ -13,7 +13,7 @@ from unfold.admin import ModelAdmin
 from unfold.contrib.filters.admin import FieldTextFilter
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
 
-from app.models import Cosound, Sound, Player, Vote
+from app.models import Sound, Player, Vote
 from app.forms import SoundForm
 
 model = django_apps.get_model("django_file_form", "TemporaryUploadedFile")
@@ -45,6 +45,7 @@ class SoundAdmin(FileFormAdmin, ModelAdmin):  # type: ignore
         return mark_safe(html)
 
     nvec_radar_chart.short_description = "Natural Vector Classification"  # type: ignore
+    list_display = ["title", "artist", "type", "timestamp"]
 
     def get_readonly_fields(self, request, obj=None):
         if obj:
@@ -54,12 +55,9 @@ class SoundAdmin(FileFormAdmin, ModelAdmin):  # type: ignore
 
 @admin.register(Player)
 class PlayerAdmin(ModelAdmin):
-    pass
-
-
-@admin.register(Cosound)
-class CosoundAdmin(ModelAdmin):
-    pass
+    list_display = ["name", "client"]
+    readonly_fields = ("token",)
+    list_filter = [("name", FieldTextFilter)]
 
 
 @admin.register(Vote)

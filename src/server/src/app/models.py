@@ -5,6 +5,8 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from users.models import NaturalVector
 
+from app.ml import classify_sound
+
 
 class Player(models.Model):
     client = models.ForeignKey(
@@ -26,11 +28,46 @@ class Player(models.Model):
         verbose_name="Library",
         blank=True,
     )
+    cosound = models.JSONField(
+        verbose_name="Cosound",
+        default=dict,
+        blank=True,
+        null=True,
+    )
 
     def save(self, *args, **kwargs):
         if not self.token:
             self.token = secrets.token_hex(32)
         super().save(*args, **kwargs)
+
+    def summary(self):
+        string = ""
+        soundscapes = self.cosound.get("soundscapes", [])
+
+        for i, soundscape in enumerate(soundscapes):
+            sound = Sound.objects.get(id=soundscape["id"])
+            string += f"\t  Soundscape Layer {i+1}: {sound.title}\n"
+            gains = soundscape["gain"]
+            for group, gain in gains.items():  # type: ignore
+                string += f"\t\t-> {group.capitalize()} Gain: {gain:.2f}\n"
+
+        instrumentals = self.cosound.get("instrumental", [])
+        if len(instrumentals) > 0:
+            for i, instrumental in enumerate(instrumentals):
+                sound = Sound.objects.get(id=instrumental["id"])
+                string += f"\t  Instrumental Layer {i+1}: {sound.title}\n"
+                gains = instrumental["gain"]
+                for group, gain in gains.items():  # type: ignore
+                    string += f"\t\t-> {group.capitalize()} Gain: {gain:.2f}\n"
+        return string
+
+    def toJson(self) -> dict:
+        """Serialize Player instance."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "client_id": self.client_id,
+        }
 
     def __str__(self):
         return self.name
@@ -56,7 +93,6 @@ class Sound(models.Model):
         null=True,
         blank=True,
     )
-    # The Type of Sound only choices: Instrumental, Soundscape, Vocal
     type = models.CharField(
         max_length=50,
         verbose_name="Type of Sound",
@@ -73,82 +109,29 @@ class Sound(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.nvec:
-            nvec = NaturalVector.classify(self.audio)
+            embeddings = classify_sound(self.audio)
+            nvec = NaturalVector.fromList(embeddings)
             nvec.save()
             self.nvec = nvec
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.title
+        return self.title + " by " + self.artist
 
     def get_inline_title(self):
         return f"{self.title}"
 
-
-class Cosound(models.Model):
-    sounds = models.ManyToManyField(
-        Sound,
-        verbose_name="Sounds",
-    )
-    gain = models.JSONField(
-        verbose_name="Gain for each Sound",
-        default=dict,
-        blank=True,
-        null=True,
-    )
-    timestamp = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name="Timestamp",
-    )
-    player = models.ForeignKey(
-        Player,
-        on_delete=models.CASCADE,
-        verbose_name="Player",
-    )
-
-    def save(self, *args, **kwargs):
-
-        if self.pk is None:  # Must save before we can access self.sounds
-            super().save(*args, **kwargs)
-            return
-        player = self.player
-        if self.sounds.count() > 0:
-            for sound in self.sounds.all():
-                if sound not in player.library.all():
-                    raise ValidationError(
-                        f"Cosound can only be composed of Sounds in the Player's library."
-                    )
-
-            self.gain = {} if not self.gain else self.gain
-            for sound in self.sounds.all():
-                # Ensure keys are strings for JSONField
-                s_id = str(sound.id)
-                if s_id not in self.gain:
-                    self.gain[s_id] = {"global": 1.0}
-                if "global" not in self.gain[s_id].keys():
-                    self.gain[s_id]["global"] = 1.0
-
-        super().save(*args, **kwargs)
-
-    def summary(self):
-
-        string = ""
-        for i, sound in enumerate(self.sounds.all()):
-            string += f"\t  Layer {i+1}: {sound.title}\n"
-            for group, gain in self.gain[str(sound.id)].items():  # type: ignore
-                string += f"\t\t-> {group.capitalize()} Gain: {gain:.2f}\n"
-        return string
-
-    def __str__(self):
-        if not self.pk:
-            return "Unsaved Cosound"
-        count = self.sounds.count()
-        if count == 0:
-            return "Empty Cosound"
-        elif count == 1:
-            return f"Single Layer Cosound : {self.sounds.first().title}"  # type: ignore
-        else:
-            return f"Multi-Layer Cosound ({count} Sounds)"
+    def toJson(self) -> dict:
+        """Serialize Sound instance with full URL for audio file."""
+        return {
+            "id": self.id,
+            "audio": self.audio.url,  # Full S3 URL
+            "timestamp": self.timestamp.isoformat(),
+            "title": self.title,
+            "artist": self.artist,
+            "nvec": self.nvec.toList(),
+            "type": self.type,
+        }
 
 
 class Vote(models.Model):
@@ -175,12 +158,23 @@ class Vote(models.Model):
         null=True,
         blank=True,
     )
-    cosound = models.ForeignKey(
-        Cosound,
-        on_delete=models.CASCADE,
+    cosound = models.JSONField(
         verbose_name="Cosound",
+        default=dict,
+        blank=True,
+        null=True,
     )
 
     def __str__(self):
         vote_type = "Upvote" if self.upvote else "Downvote"
-        return f"{vote_type} by {self.voter.username} on {self.cosound}"
+        return f"{vote_type} by {self.voter.username} at {self.player.name}"
+
+    def toJson(self) -> dict:
+        """Serialize Vote instance."""
+        return {
+            "id": self.id,
+            "upvote": self.upvote,
+            "timestamp": self.timestamp.isoformat(),
+            "voter": self.voter_id,
+            "group": self.group,
+        }

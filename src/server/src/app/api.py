@@ -6,7 +6,7 @@ from ninja.orm import ModelSchema
 from ninja.security import APIKeyHeader, HttpBasicAuth
 from ninja.throttling import AuthRateThrottle
 
-from app.models import Player, Sound, Cosound
+from app.models import Player, Sound
 from users.models import Client
 
 api = NinjaAPI()
@@ -70,14 +70,6 @@ class SoundOut(ModelSchema):
         fields = ["id", "type", "audio", "timestamp"]
 
 
-class CosoundOut(ModelSchema):
-    sounds: List[SoundOut]
-
-    class Meta:
-        model = Cosound
-        fields = ["sounds", "gain", "timestamp"]
-
-
 @api.get(
     "/player/library",
     response=List[SoundOut],
@@ -100,7 +92,6 @@ def get_player_library(request, player: str):
 
 @api.get(
     "/cosound",
-    response=CosoundOut,
     auth=PersonalTokenAuth(),
     throttle=[AuthRateThrottle("10/m")],
 )
@@ -108,6 +99,51 @@ def get_cosound(request, player: str):
     client: Client = request.auth
     try:
         player_obj = Player.objects.get(token=player, client=client)
+        cosound_data = player_obj.cosound or {}
+
+        # Get full Sound objects for soundscapes
+        soundscapes_with_sounds = []
+        for soundscape in cosound_data.get("soundscapes", []):
+            try:
+                sound = Sound.objects.get(id=soundscape["id"])
+                soundscapes_with_sounds.append(
+                    {
+                        "id": sound.id,
+                        "audio": sound.audio.url,
+                        "title": sound.title,
+                        "artist": sound.artist,
+                        "type": sound.type,
+                        "timestamp": sound.timestamp.isoformat(),
+                        "gain": soundscape.get("gain", {"global": 1.0}),
+                    }
+                )
+            except Sound.DoesNotExist:
+                continue
+
+        # Get full Sound objects for instrumentals
+        instrumentals_with_sounds = []
+        for instrumental in cosound_data.get("instrumental", []):
+            try:
+                sound = Sound.objects.get(id=instrumental["id"])
+                instrumentals_with_sounds.append(
+                    {
+                        "id": sound.id,
+                        "audio": sound.audio.url,
+                        "title": sound.title,
+                        "artist": sound.artist,
+                        "type": sound.type,
+                        "timestamp": sound.timestamp.isoformat(),
+                        "gain": instrumental.get("gain", {"global": 1.0}),
+                    }
+                )
+            except Sound.DoesNotExist:
+                continue
+
+        return {
+            "soundscapes": soundscapes_with_sounds,
+            "instrumental": instrumentals_with_sounds,
+            "timestamp": cosound_data.get("timestamp"),
+        }
     except Player.DoesNotExist:
         # Throw a 404 if the player does not exist or does not belong to the client
         return api.create_response(
@@ -115,16 +151,3 @@ def get_cosound(request, player: str):
             {"detail": "Player not found."},
             status=404,
         )
-    try:
-        cosound = (
-            Cosound.objects.filter(player=player_obj)
-            .prefetch_related("sounds")
-            .latest("timestamp")
-        )
-    except Cosound.DoesNotExist:
-        return api.create_response(
-            request,
-            {"detail": "No cosounds found for this player."},
-            status=404,
-        )
-    return cosound

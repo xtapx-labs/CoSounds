@@ -479,6 +479,15 @@ wheels = [
 ]
 
 [[package]]
+name = "random-username"
+version = "1.0.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/be/84/7004e0038707827e7ebe91a09e0f46483e36134de3b20bc0d5cf864a4caa/random-username-1.0.2.tar.gz", hash = "sha256:5fdc0604b5d1bdfe4acf4cd7491a9de1caf41bbdd890f646b434e09ae2a1b7ce", size = 3805, upload-time = "2019-01-11T22:57:45.038Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/92/d8/0f96b9bdea0683884b0ff2d8663b2580e2bad4418848540d1a12e1fd1d7b/random_username-1.0.2-py3-none-any.whl", hash = "sha256:2536feb63fecde7e01ede4a541aadb6f0b58794a7ab327ca5369d2a4b7664c06", size = 6673, upload-time = "2019-01-11T22:57:43.656Z" },
+]
+
+[[package]]
 name = "regex"
 version = "2025.11.3"
 source = { registry = "https://pypi.org/simple" }
@@ -573,6 +582,7 @@ dependencies = [
     { name = "djangorestframework" },
     { name = "email-validator" },
     { name = "python-dotenv" },
+    { name = "random-username" },
     { name = "sqids" },
 ]
 
@@ -599,6 +609,7 @@ requires-dist = [
     { name = "djangorestframework", specifier = ">=3.16.1" },
     { name = "email-validator", specifier = ">=2.0.0" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
+    { name = "random-username", specifier = ">=1.0.2" },
     { name = "sqids", specifier = ">=0.5.2" },
 ]
 

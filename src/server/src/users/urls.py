@@ -1,9 +1,32 @@
 from django.urls import path
 from django.views.generic import RedirectView
 from allauth.account import views as account_views
+from users.views import (
+    guest_login_view,
+    htmx_auth_options,
+    htmx_login_email,
+    htmx_login_code,
+)
 
 
 urlpatterns = [
+    # HTMX Auth Modal Views
+    path(
+        "htmx/auth/options/",
+        htmx_auth_options,
+        name="htmx_auth_options",
+    ),
+    path(
+        "htmx/login/email/",
+        htmx_login_email,
+        name="htmx_login_email",
+    ),
+    path(
+        "htmx/login/code/",
+        htmx_login_code,
+        name="htmx_login_code",
+    ),
+    # Standard Auth Routes
     path(
         "login/",
         account_views.request_login_code,
@@ -28,5 +51,10 @@ urlpatterns = [
         "signin/",
         RedirectView.as_view(pattern_name="account_request_login_code"),
         name="account_login",
+    ),
+    path(
+        "guest/login/",
+        guest_login_view,
+        name="account_guest_login",
     ),
 ]

@@ -16,15 +16,19 @@
 /* 2. Customize 'winter' and set it as the DEFAULT (Light Mode) */
 @plugin "daisyui/theme" {
     name: "winter";
-    default: true;             /* Sets winter as the default theme */
-    --color-base-100: #f3f4f6; /* Custom background color */
+    default: true;
+    /* Sets winter as the default theme */
+    --color-base-100: #f3f4f6;
+    /* Custom background color */
 }
 
 /* 3. Customize 'dim' and set it as the PREFERRED DARK (Dark Mode) */
 @plugin "daisyui/theme" {
     name: "dim";
-    prefersdark: true;         /* Sets dim as the dark mode theme */
-    --color-base-100: #1f2733; /* Custom background color */
+    prefersdark: true;
+    /* Sets dim as the dark mode theme */
+    --color-base-100: #1f2733;
+    /* Custom background color */
 }
 
 /* 4. Configure the 'dark:' variant for Tailwind */

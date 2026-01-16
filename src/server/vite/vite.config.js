@@ -1,16 +1,34 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import { networkInterfaces } from 'os';
 import tailwindcss from '@tailwindcss/vite';
+
+// Get the local IP address of the machine
+function getLocalIp() {
+    const nets = networkInterfaces();
+    for (const name of Object.keys(nets)) {
+        for (const net of nets[name]) {
+            // Skip internal and non-IPv4 addresses
+            if (net.family === 'IPv4' && !net.internal) {
+                return net.address;
+            }
+        }
+    }
+    return 'localhost';
+}
+
+const localIp = getLocalIp();
+console.log(`[vite] Using local IP: ${localIp}`);
 
 export default defineConfig({
     base: "/static/",
     server: {
-        allowedHosts: ['10.0.0.57', 'localhost', '127.0.0.1', '0.0.0.0'],
+        allowedHosts: [localIp, 'localhost', '127.0.0.1', '0.0.0.0'],
         host: '0.0.0.0', // Listen on all addresses
         port: 5173,
         cors: true,      // Allow the phone to request resources
         hmr: {
-            host: '10.0.0.57', // <--- IMPORTANT: Force the HMR connection to your IP
+            host: localIp, // Dynamically set HMR to local IP
         },
     },
     build: {

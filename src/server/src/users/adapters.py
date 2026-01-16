@@ -1,45 +1,53 @@
 import uuid
 import random
 from allauth.account.adapter import DefaultAccountAdapter
-from allauth.account.forms import RequestLoginCodeForm
-from django.contrib.auth import get_user_model
 from django import forms
+from django.contrib.auth import get_user_model
 from users.models import Voter, NaturalVector
 
 
 class UnifiedLoginAdapter(DefaultAccountAdapter):
+    """Custom adapter for unified login flow."""
+
     def generate_login_code(self):
+        """Simple numeric code generator."""
         return "".join(random.choices("0123456789", k=6))
 
     def is_open_for_signup(self, request):
         return True
 
 
-class UnifiedRequestLoginCodeForm(RequestLoginCodeForm):
+class UnifiedRequestLoginCodeForm(forms.Form):
+    """
+    Validates email input and ensures a User account exists (Auto-Signup).
+    """
+
+    email = forms.EmailField(
+        label="Email",
+        widget=forms.EmailInput(
+            attrs={"placeholder": "Enter your email", "autofocus": True}
+        ),
+    )
+
     def clean_email(self):
         email = self.cleaned_data.get("email", "").lower().strip()
-
         User = get_user_model()
-        if not User.objects.filter(email__iexact=email).exists():
-            base_username = email.split("@")[0]
-            unique_suffix = uuid.uuid4().hex[:8]
-            username = f"{base_username}_{unique_suffix}"
 
+        # Get or Create User (case-insensitive)
+        try:
+            user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
             user = User.objects.create(
                 email=email,
-                username=username,
+                username=f"{email.split('@')[0]}_{uuid.uuid4().hex[:8]}",
             )
             user.set_unusable_password()
             user.save()
-        else:
-            user = User.objects.get(email__iexact=email)
 
-        if not Voter.objects.filter(user=user).exists():
-            nvector = NaturalVector.null()
-            nvector.save()
-            voter = Voter.objects.create(
-                user=user,
-                nvector=nvector,
-            )
-            voter.save()
-        return super().clean_email()
+        # Ensure Voter Profile exists
+        if not hasattr(user, "voter"):
+            nvec = NaturalVector.null()
+            nvec.save()
+            Voter.objects.create(user=user, nvec=nvec)
+
+        return email

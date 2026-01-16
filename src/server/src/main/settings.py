@@ -1,4 +1,5 @@
 import os
+import socket
 import logging
 import platform
 from pathlib import Path
@@ -7,13 +8,37 @@ from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 
 
+def get_local_ip():
+    """Get the local IP address of the machine."""
+    try:
+        # Create a socket and connect to an external address to determine local IP
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+        return local_ip
+    except Exception:
+        return "127.0.0.1"
+
+
+LOCAL_IP = get_local_ip()
+
 os.environ["DJANGO_RUNSERVER_HIDE_WARNING"] = "true"
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-secret-key")
 DEBUG = os.getenv("DEBUG", "True") == "True"
 load_dotenv(BASE_DIR.parent.parent / "env" / ".env")
 if DEBUG:
-    ALLOWED_HOSTS = str(os.getenv("DEV_HOSTS", default=["*"])).split(",")
+    ALLOWED_HOSTS = [
+        "localhost",
+        "127.0.0.1",
+        "0.0.0.0",
+        "localhost:5173",
+        "127.0.0.1:5173",
+        "0.0.0.0:5173",
+        LOCAL_IP,
+        f"{LOCAL_IP}:5173",
+    ]
 else:
     ALLOWED_HOSTS = str(os.getenv("PROD_HOSTS", default=["*"])).split(",")
 LOGGING = {
@@ -161,7 +186,7 @@ STATICFILES_DIRS = [
 DJANGO_VITE = {
     "default": {
         "dev_mode": DEBUG,
-        "dev_server_host": "10.0.0.57",
+        "dev_server_host": LOCAL_IP,
         "dev_server_port": 5173,
     }
 }
@@ -207,9 +232,9 @@ UNFOLD = {
                 "separator": True,  # Top border
                 "items": [
                     {
-                        "title": _("Generated Cosounds"),
+                        "title": _("Recorded Votes"),
                         "icon": "instant_mix",  # Supported icon set: https://fonts.google.com/icons
-                        "link": reverse_lazy("admin:app_cosound_changelist"),
+                        "link": reverse_lazy("admin:app_vote_changelist"),
                         "badge_variant": "info",  # info, success, warning, primary, danger
                         "badge_style": "solid",  # background fill style
                         "permission": lambda request: request.user.is_superuser,

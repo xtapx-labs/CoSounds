@@ -1,0 +1,134 @@
+<c-vars upvote="0" last_upvoted="Never" />
+<div class="flex flex-col items-center gap-3"
+     x-data="votingData('{{ upvote }}', '{{ last_upvoted }}')">
+    <div class="flex flex-row items-center justify-center gap-8">
+        <button class="flex h-14 w-14 items-center justify-center rounded-full text-base-300-content/80 transition-all active:scale-95 bg-base-300/90 hover:bg-base-300/80 active:bg-base-300/100">
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 height="24px"
+                 class="h-9 w-9"
+                 viewBox="0 -960 960 960"
+                 width="24px"
+                 fill="currentColor">
+                <path d="M200-360v-240h160l200-200v640L360-360H200Zm440 40v-322q45 21 72.5 65t27.5 97q0 53-27.5 96T640-320ZM480-606l-86 86H280v80h114l86 86v-252ZM380-480Z" />
+            </svg>
+        </button>
+        <div class="relative flex items-center justify-center">
+            <svg class="absolute w-32 h-32 pointer-events-none animate-[spin_10s_linear_infinite]"
+                 viewBox="0 0 100 100">
+                <defs>
+                <path id="circlePath" d="M 50, 50 m -36, 0 a 36,36 0 1,1 72,0 a 36,36 0 1,1 -72,0" />
+                </defs>
+                <text class="font-bold text-[8px] uppercase tracking-[0.15em]" :class="{ 'fill-success': upvote === 1, 'fill-error': upvote === -1, 'fill-base-content': upvote === 0 }">
+                <textPath xlink:href="#circlePath" startOffset="0%" text-anchor="middle">
+                </textPath>
+                <textPath xlink:href="#circlePath" startOffset="25%" text-anchor="middle">
+                <tspan x-text="statusText"></tspan>
+                </textPath>
+                <textPath xlink:href="#circlePath" startOffset="50%" text-anchor="middle">
+                </textPath>
+                <textPath xlink:href="#circlePath" startOffset="75%" text-anchor="middle">
+                <tspan x-text="statusText"></tspan>
+                </textPath>
+                </text>
+            </svg>
+            <button @click="handleClick()"
+                    :disabled="upvote !== 0 || !timerFinished"
+                    :class="{ 'bg-error text-error-content cursor-not-allowed': upvote === -1, 'bg-success text-success-content cursor-not-allowed': upvote === 1, 'bg-neutral text-neutral-content cursor-not-allowed': upvote === 0 && !timerFinished, 'bg-primary text-primary-content hover:bg-primary/90': upvote === 0 && timerFinished }"
+                    class="relative z-10 flex h-20 w-20 items-center justify-center rounded-full transition-all active:scale-95 disabled:active:scale-100 ring-4 ring-base-100">
+                <span x-show="upvote === 0 && !timerFinished"
+                      class="font-mono text-3xl font-bold"
+                      x-text="totalSeconds"></span>
+                <svg x-show="upvote === 0 && timerFinished"
+                     xmlns="http://www.w3.org/2000/svg"
+                     height="32px"
+                     viewBox="0 -960 960 960"
+                     width="32px"
+                     fill="currentColor"
+                     class="h-9 w-9">
+                    <path d="M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q69 0 132 28.5T720-690v-110h80v240H560v-80h135q-44-51-103.5-80.5T480-720q-100 0-170 70t-70 170q0 100 70 170t170 70q77 0 139-44t87-116h84q-28 106-114 173t-196 67Z" />
+                </svg>
+                <svg x-show="upvote === 1"
+                     xmlns="http://www.w3.org/2000/svg"
+                     class="h-9 w-9"
+                     viewBox="0 0 24 24"
+                     fill="currentColor">
+                    <path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-1.91l-.01-.01L23 10z" />
+                </svg>
+                <svg x-show="upvote === -1"
+                     xmlns="http://www.w3.org/2000/svg"
+                     height="24px"
+                     viewBox="0 -960 960 960"
+                     width="24px"
+                     fill="currentColor"
+                     class="h-9 w-9">
+                    <path d="M240-840h440v520L400-40l-50-50q-7-7-11.5-19t-4.5-23v-14l44-174H120q-32 0-56-24t-24-56v-80q0-7 2-15t4-15l120-282q9-20 30-34t44-14Zm360 80H240L120-480v80h360l-54 220 174-174v-406Zm0 406v-406 406Zm80 34v-80h120v-360H680v-80h200v520H680Z" />
+                </svg>
+            </button>
+        </div>
+        <button class="flex h-14 w-14 items-center justify-center rounded-full text-base-300-content/80 transition-all active:scale-95 bg-base-300/90 hover:bg-base-300/80 active:bg-base-300/100">
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 height="24px"
+                 class="h-9 w-9"
+                 viewBox="0 -960 960 960"
+                 width="24px"
+                 fill="currentColor">
+                <path d="M560-131v-82q90-26 145-100t55-168q0-94-55-168T560-749v-82q124 28 202 125.5T840-481q0 127-78 224.5T560-131ZM120-360v-240h160l200-200v640L280-360H120Zm440 40v-322q47 22 73.5 66t26.5 96q0 51-26.5 94.5T560-320ZM400-606l-86 86H200v80h114l86 86v-252ZM300-480Z" />
+            </svg>
+        </button>
+    </div>
+</div>
+<script>
+    function votingData(upvoteRaw, lastVotedRaw) {
+        return {
+            upvote: parseInt(upvoteRaw, 10) || 0,
+            lastVoted: lastVotedRaw,
+            totalSeconds: 0,
+            timer: null,
+            timerFinished: false,
+            // UPDATED: No more bullets in the text string
+            get statusText() {
+                if (this.upvote === 1) return 'UPVOTE SENT';
+                if (this.upvote === -1) return 'DOWNVOTE SENT';
+                return 'NEXT VOTE IN';
+            },
+            init() {
+                if (this.upvote === 1 || this.upvote === -1) {
+                    this.timerFinished = true;
+                    return;
+                }
+                if (this.lastVoted === 'Never' || !this.lastVoted) {
+                    this.timerFinished = true;
+                    return;
+                }
+                const safeDateString = this.lastVoted.replace(' ', 'T');
+                const lastVoteDate = new Date(safeDateString);
+                if (isNaN(lastVoteDate.getTime())) {
+                    console.error('Invalid Date:', this.lastVoted);
+                    this.timerFinished = true;
+                    return;
+                }
+                const targetDate = new Date(lastVoteDate.getTime() + 60000);
+                if (Date.now() >= targetDate) {
+                    this.totalSeconds = 0;
+                    this.timerFinished = true;
+                    return;
+                }
+                this.updateClock(targetDate);
+                this.timer = setInterval(() => this.updateClock(targetDate), 1000);
+            },
+            updateClock(targetDate) {
+                const diff = targetDate - Date.now();
+                if (diff <= 0) {
+                    this.totalSeconds = 0;
+                    this.timerFinished = true;
+                    if (this.timer) clearInterval(this.timer);
+                } else {
+                    this.totalSeconds = Math.ceil(diff / 1000);
+                }
+            },
+            handleClick() {
+                if (this.upvote === 0 && this.timerFinished) window.location.reload();
+            }
+        };
+    }
+</script>

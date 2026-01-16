@@ -5,6 +5,8 @@ from django.core.files.base import File
 import secrets
 import random
 
+from app.ml import classify_sound, classify_voter
+
 
 class User(AbstractUser):
     class Meta:
@@ -15,6 +17,13 @@ class User(AbstractUser):
     username = models.CharField(max_length=255, unique=True)
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]
+
+    def toJson(self) -> dict:
+        """Serialize User instance."""
+        return {
+            "id": self.id,
+            "username": self.username,
+        }
 
 
 class Client(models.Model):
@@ -56,14 +65,24 @@ class NaturalVector(models.Model):
         )
 
     @classmethod
-    def classify(cls, audio_file: File) -> "NaturalVector":
+    def fromList(cls, embeddings: list) -> "NaturalVector":
         return cls(
-            rain=random.uniform(0, 1),
-            sea_waves=random.uniform(0, 1),
-            thunderstorm=random.uniform(0, 1),
-            wind=random.uniform(0, 1),
-            crackling_fire=random.uniform(0, 1),
+            rain=embeddings[0],
+            sea_waves=embeddings[1],
+            thunderstorm=embeddings[2],
+            wind=embeddings[3],
+            crackling_fire=embeddings[4],
         )
+
+    def toList(self) -> list:
+        """Serialize NaturalVector instance."""
+        return [
+            self.rain,
+            self.sea_waves,
+            self.thunderstorm,
+            self.wind,
+            self.crackling_fire,
+        ]
 
 
 class Voter(models.Model):
@@ -72,7 +91,20 @@ class Voter(models.Model):
         verbose_name_plural = "Voters"
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    nvector = models.ForeignKey(NaturalVector, on_delete=models.PROTECT)
+    nvec = models.ForeignKey(NaturalVector, on_delete=models.PROTECT)
 
     def __str__(self):
         return f"Voter: {self.user.username}"
+
+    def save(self, *args, **kwargs):
+        if not self.nvec:
+            embeddings = classify_voter({})
+            self.nvec = NaturalVector.fromList(embeddings)
+        super().save(*args, **kwargs)
+
+    def toJson(self) -> dict:
+        """Serialize Voter instance."""
+        return {
+            "id": self.id,
+            "nvec": self.nvec.toList(),
+        }

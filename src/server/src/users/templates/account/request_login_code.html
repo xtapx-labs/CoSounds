@@ -1,12 +1,11 @@
 {% load i18n %}
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% trans "Sign In" %}</title>
-    <style>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{% trans "Sign In" %}</title>
+        <style>
         * {
             margin: 0;
             padding: 0;
@@ -132,41 +131,37 @@
             font-size: 14px;
             list-style: none;
         }
-    </style>
-</head>
-
-<body>
-    <div class="container">
-        <h1>{% trans "Welcome" %}</h1>
-        <p class="subtitle">{% trans "Enter your email to sign in or create an account" %}</p>
-
-        {% if form.errors %}
-        <div class="errors">
-            {% for field in form %}
-            {% for error in field.errors %}
-            <li>{{ error }}</li>
-            {% endfor %}
-            {% endfor %}
-            {% for error in form.non_field_errors %}
-            <li>{{ error }}</li>
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        <form method="POST" action="{% url 'account_request_login_code' %}">
-            {% csrf_token %}
-            <div class="form-group">
-                <label for="id_email">{% trans "Email Address" %}</label>
-                <input type="email" name="email" id="id_email" placeholder="you@example.com" required
-                    autocomplete="email" autofocus>
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>{% trans "Welcome" %}</h1>
+            <p class="subtitle">{% trans "Enter your email to sign in or create an account" %}</p>
+            {% if form.errors %}
+                <div class="errors">
+                    {% for field in form %}
+                        {% for error in field.errors %}<li>{{ error }}</li>{% endfor %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+                </div>
+            {% endif %}
+            <form method="POST" action="{% url 'account_request_login_code' %}">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="id_email">{% trans "Email Address" %}</label>
+                    <input type="email"
+                           name="email"
+                           id="id_email"
+                           placeholder="you@example.com"
+                           required
+                           autocomplete="email"
+                           autofocus>
+                </div>
+                <button type="submit" class="btn">{% trans "Send Login Code" %}</button>
+            </form>
+            <div class="info">
+                <p>{% trans "We'll send you a one-time code to verify your identity. No password needed." %}</p>
             </div>
-            <button type="submit" class="btn">{% trans "Send Login Code" %}</button>
-        </form>
-
-        <div class="info">
-            <p>{% trans "We'll send you a one-time code to verify your identity. No password needed." %}</p>
         </div>
-    </div>
-</body>
-
+    </body>
 </html>

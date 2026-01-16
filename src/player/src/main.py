@@ -10,7 +10,12 @@ from dotenv import load_dotenv
 from rich.console import Console
 
 from app.player import LayerManager
-from app.client import get_cosound, get_library, login_and_get_tokens
+from app.client import (
+    get_cosound,
+    get_library,
+    login_and_get_tokens,
+    check_media,
+)
 from app.utils import delete_last_lines, print_ascii_banner, print_header
 
 console = Console()
@@ -21,7 +26,14 @@ def main():
     print_ascii_banner()
     print_header()
     client_token, player_token = login_and_get_tokens()
-    get_library(client_token, player_token)
+    if check_media() == True:
+        typer.secho(
+            "Media folder already populated, skipping library download.\n",
+            fg=typer.colors.YELLOW,
+            bold=True,
+        )
+    else:
+        get_library(client_token, player_token)
     player = LayerManager()
     while True:
         with console.status(
@@ -30,7 +42,7 @@ def main():
             min_duration_s = 3.0
             start = time.monotonic()
             cosound = get_cosound(client_token, player_token)
-            player.transition(cosound)
+            player.transition(cosound["soundscapes"], cosound["instrumental"])
             elapsed = time.monotonic() - start
             remaining = min_duration_s - elapsed
             if remaining > 0:
