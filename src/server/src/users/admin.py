@@ -17,7 +17,7 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
 
     class Meta:
         model = User
-        verbose_name = "Usersfsf"
+        verbose_name = "Users"
 
     form = UserChangeForm
     add_form = UserCreationForm

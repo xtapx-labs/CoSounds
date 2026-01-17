@@ -13,7 +13,7 @@ else
 endif
 
 server:
-ifeq ($(make),clean)
+ifeq ($(run),clean)
 	@echo "Cleaning Server..."
 	@echo "Deleting Python Cache..."
 	@cd src/server/src \
@@ -21,19 +21,18 @@ ifeq ($(make),clean)
 	@echo "Deleting Django Migrations..."
 	@cd src/server/src \
 		&& find . -type f -path "*/migrations/*.py" ! -name "__init__.py" -exec rm -f {} +
-	@echo "Deleting SQLite Databases..."
-	@cd src/server \
-		&& find . -type f -name "db.sqlite3" -exec rm -f {} +
+	@echo "Deleting Databases..."
+	@-dropdb --force cosounds > /dev/null 2>&1
 	@echo "Deleting Node Modules..."
 	@cd src/server/vite \
 		&& find . -type d -name "node_modules" -exec rm -rf {} +
 	@echo "Deleting Vite Builds..."
 	@cd src/server/vite \
 		&& find . -type d -name "static" -exec rm -rf {} +	
-else ifdef make
+else ifdef run
 	@echo "Running command in Server Environment..."
 	@cd src/server \
-		&& $(make)
+		&& $(run)
 else
 	@reset
 	@chmod +x bin/clean_honcho.sh
@@ -42,6 +41,8 @@ else
 	@echo "Installing dependencies..."
 	@cd src/server \
 		&& uv sync
+	@echo "Setting Up Database..."
+	@-createdb cosounds
 	@echo "Building Vite Assets..."
 	@cd src/server/vite \
 		&& npm install \
@@ -55,7 +56,7 @@ else
 	@echo "Server is ready!"
 	@echo "Starting Server..."
 	@cd src/server \
-		&& uv run src/main.py vite runserver
+		&& uv run src/main.py proc runserver --procfile procfile.prod
 endif
 
 superuser:

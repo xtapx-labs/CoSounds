@@ -118,6 +118,8 @@ INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
+    "django_tasks",
+    "django_tasks.backends.database",
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django_vite",
@@ -243,7 +245,7 @@ DATABASES = {
 }
 TASKS = {
     "default": {
-        "BACKEND": "django.tasks.backends.immediate.ImmediateBackend",
+        "BACKEND": "django_tasks.backends.database.DatabaseBackend",
     }
 }
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"

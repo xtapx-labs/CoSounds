@@ -26,7 +26,18 @@ def predict_cosound(
         )
 
     predicted_instrumental: list[dict] = []
-    if instrumentals and random.choice([True, False]):
+    # Only add instrumental if there are new votes (after current cosound timestamp)
+    cosound_timestamp = player.get("cosound", {}).get("timestamp")
+    has_new_votes = (
+        any(
+            vote.get("timestamp") and vote["timestamp"] > cosound_timestamp
+            for vote in votes
+        )
+        if cosound_timestamp and votes
+        else bool(votes)
+    )
+
+    if instrumentals and has_new_votes:
         for instrumental in random.sample(instrumentals, min(1, len(instrumentals))):
             predicted_instrumental.append(
                 {

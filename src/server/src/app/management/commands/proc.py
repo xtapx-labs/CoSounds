@@ -26,8 +26,8 @@ Command argument is missing, use one of:
   runserver   - start Django + Vite via Honcho
   dev         - alias of runserver
 Examples:
-  uv run lib/main.py vite build
-  uv run lib/main.py vite runserver
+  uv run lib/main.py proc build
+  uv run lib/main.py proc runserver
 """
 
     def add_arguments(self, parser):

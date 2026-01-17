@@ -9,9 +9,8 @@ services:
     plan: free
     name: cosounds
     runtime: python
-    rootDir: src/server
-    buildCommand: './build.sh'
-    startCommand: 'cd src && python -m gunicorn main.asgi:application -k uvicorn.workers.UvicornWorker'
+    buildCommand: './build_prod_server.sh'
+    startCommand: './start_prod_server.sh'
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -32,3 +31,6 @@ services:
         sync: false
       - key: AWS_S3_REGION_NAME
         sync: false
+      # Django Debug Toggle
+      - key: DEBUG
+        value: false
