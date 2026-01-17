@@ -41,5 +41,39 @@ uv run src/main.py migrate
 echo "📂 Collecting static files..."
 uv run src/main.py collectstatic --noinput
 
+# Create superuser from environment variables
+echo "👤 Creating superuser..."
+uv run src/main.py shell <<EOF
+from django.contrib.auth import get_user_model
+import os
+
+User = get_user_model()
+
+# Strip quotes from environment variables
+email = os.getenv('FIRST_ADMIN_EMAIL', 'admin@example.com').strip("'\"")
+username = os.getenv('FIRST_ADMIN_USERNAME', 'Administrator').strip("'\"")
+password = os.getenv('FIRST_ADMIN_PASSWORD', 'changeme').strip("'\"")
+
+# Check if user already exists
+if User.objects.filter(email=email).exists():
+    print(f"✓ Superuser with email '{email}' already exists.")
+elif User.objects.filter(username=username).exists():
+    print(f"✓ Superuser with username '{username}' already exists.")
+else:
+    # Create the superuser
+    try:
+        User.objects.create_superuser(
+            email=email,
+            username=username,
+            password=password
+        )
+        print(f"✓ Superuser '{username}' created successfully!")
+        print(f"  Email: {email}")
+        print(f"  Username: {username}")
+    except Exception as e:
+        print(f"✗ Error creating superuser: {e}")
+        exit(1)
+EOF
+
 echo "✅ Production build complete!"
 

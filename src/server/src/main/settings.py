@@ -59,6 +59,13 @@ else:
 RENDER_EXTERNAL_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+# CSRF Configuration for production
+CSRF_TRUSTED_ORIGINS = []
+if RENDER_EXTERNAL_HOSTNAME:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{RENDER_EXTERNAL_HOSTNAME}")
+    CSRF_TRUSTED_ORIGINS.append(f"https://www.{RENDER_EXTERNAL_HOSTNAME}")
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -216,11 +223,7 @@ DJANGO_VITE = {
         "dev_mode": DEBUG,
         "dev_server_host": LOCAL_IP,
         "dev_server_port": 5173,
-        "manifest_path": (
-            STATIC_ROOT / "manifest.json"
-            if not DEBUG
-            else BASE_DIR / "vite/static/manifest.json"
-        ),
+        "manifest_path": BASE_DIR / "vite/static/manifest.json",
     }
 }
 AUTH_PASSWORD_VALIDATORS = []
