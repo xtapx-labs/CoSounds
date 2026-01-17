@@ -9,7 +9,6 @@ services:
     plan: free
     name: cosound-server
     runtime: python
-    rootDir: src/server
     buildCommand: './bin/buildserver_prod.sh'
     startCommand: './bin/runserver_prod.sh'
     envVars:
