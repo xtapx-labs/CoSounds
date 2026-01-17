@@ -1,20 +1,20 @@
 databases:
-  - name: cosounds-db
+  - name: cosound-db
     plan: free
-    databaseName: cosounds
-    user: cosounds
+    databaseName: cosound
+    user: cosound
 
 services:
   - type: web
     plan: free
-    name: cosounds
+    name: cosound-server
     runtime: python
     buildCommand: './build_prod_server.sh'
     startCommand: './start_prod_server.sh'
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: cosounds-db
+          name: cosound-db
           property: connectionString
       - key: SECRET_KEY
         generateValue: true
