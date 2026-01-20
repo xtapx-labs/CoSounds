@@ -1,9 +1,9 @@
 #!/bin/zsh
 # kill_orphaned_dev_servers.sh
-# Kills any Django dev server process running manage.py or main.py runserver
+# Kills any Django processes (runserver, refresh, db_worker) running via main.py or manage.py
 
 # Find matching processes (exclude the grep process itself via [] trick)
-PIDS=$(ps aux | grep -E '[m]ain\.py runserver|[m]anage\.py runserver' | awk '{print $2}')
+PIDS=$(ps aux | grep -E '[m]ain\.py (runserver|refresh|db_worker)|[m]anage\.py (runserver|refresh|db_worker)|[g]unicorn config\.asgi' | awk '{print $2}')
 
 if [[ -n "$PIDS" ]]; then
   echo "$PIDS"
@@ -17,7 +17,7 @@ if [[ -n "$PIDS" ]]; then
     echo "$REMAIN" | xargs -n1 kill -9 2>/dev/null
   fi
 else
-  echo "No Django dev server processes found."
+  echo "No Django processes found."
 fi
 
 echo "Cleanup complete."

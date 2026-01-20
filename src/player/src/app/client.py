@@ -47,7 +47,7 @@ def login_and_get_tokens():
                 f"[bold blue]Authenticating...[/bold blue]", spinner="dots"
             ):
                 resp = requests.get(  # Gets list of clients for this user
-                    f"{API_URL.rstrip('/')}/client/list",
+                    f"{API_URL.rstrip('/')}/core/client/list",
                     auth=(email, password),
                     timeout=15,
                 )
@@ -74,7 +74,7 @@ def login_and_get_tokens():
     client_token = clients[selected_client]
     with console.status(f"[bold blue]Fetching Players...[/bold blue]", spinner="dots"):
         resp = requests.get(  # Gets list of players for this client
-            f"{API_URL.rstrip('/')}/player/list",
+            f"{API_URL.rstrip('/')}/core/player/list",
             headers={"X-API-Key": client_token},
             timeout=15,
         )
@@ -163,7 +163,7 @@ def get_library(client_token: str, player_token: str):
         json.dump(manifest, f)
 
     library_resp = requests.get(  # Gets all library sounds for this player
-        f"{API_URL.rstrip('/')}/player/library?player={player_token}",
+        f"{API_URL.rstrip('/')}/core/player/library?player={player_token}",
         headers={"X-API-Key": client_token},
         timeout=15,
     )
@@ -188,7 +188,7 @@ def check_media() -> bool:
 def get_cosound(client_token: str, player_token: str):
 
     cosound_resp = requests.get(
-        f"{API_URL.rstrip('/')}/cosound?player={player_token}",
+        f"{API_URL.rstrip('/')}/core/cosound?player={player_token}",
         headers={"X-API-Key": client_token},
         timeout=15,
     )

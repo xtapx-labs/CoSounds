@@ -30,7 +30,8 @@
         "src/**/.gitignore": true,
         "**/.python-version": true,
         "**/db.sqlite3": true,
-        // "**/procfile.dev": true,
+        "**/procfile.dev": true,
+        "**/procfile.prod": true,
         "**/asgi.py": true,
         "**/wsgi.py": true,
         "**/apps.py": true,
@@ -84,4 +85,8 @@
     "djlint.maxLineLength": 120,
     "editor.suggest.showWords": false,
     "editor.snippetSuggestions": "top",
+    "djlint.ignore": [
+        "H006",
+        "D018"
+    ]
 }

@@ -30,6 +30,8 @@ dependencies = [
     "uvicorn>=0.30.0",
     "django-tasks>=0.11.0",
     "uvicorn-worker>=0.4.0",
+    "django-pydantic-field>=0.5.1",
+    "pgvector>=0.4.2",
 ]
 
 [dependency-groups]
@@ -40,5 +42,5 @@ dev = [
 ]
 
 [tool.djlint]
-ignore = ["D018"]
+ignore = ["D018","H006"]
 custom_html = "c-[\\w-]+"
