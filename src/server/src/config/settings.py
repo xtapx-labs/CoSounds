@@ -214,8 +214,11 @@ if not DEBUG:
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     }
 
-# django-file-form S3 upload configuration
+# django-file-form configuration
+# S3 direct uploads are enabled by passing s3_upload_dir to the form constructor
+# The AWS_* settings are already configured above for django-storages
 FILE_FORM_UPLOAD_DIR = "file-form-uploads"
+FILE_FORM_MUST_LOGIN = True  # Require authentication for uploads
 
 # Tell Django to copy static assets into a path called `staticfiles` (for Render)
 STATIC_ROOT = BASE_DIR / "staticfiles"

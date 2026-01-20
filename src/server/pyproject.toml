@@ -39,6 +39,7 @@ dev = [
     "djlint>=1.36.4",
     "factory-boy>=3.3.3",
     "honcho>=2.0.0",
+    "memory-profiler>=0.61.0",
 ]
 
 [tool.djlint]
