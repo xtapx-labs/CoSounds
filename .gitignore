@@ -110,3 +110,4 @@ CODE_DUPLICATION_ANALYSIS.md
 # AI assistant folders
 .cursor/
 .gemini/
+x-redundant-docs/
