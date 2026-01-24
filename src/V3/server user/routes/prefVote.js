@@ -12,15 +12,45 @@ const serviceClient = process.env.SUPABASE_SERVICE_ROLE_KEY
 // ============================================
 
 /**
+ * GET /api/preferences/exists
+ * Check if user has non-default preferences
+ */
+router.get('/preferences/exists', authenticateToken, async (req, res) => {
+  try {
+    const { data, error } = await req.supabase
+      .from('profiles')
+      .select('preference_vector')
+      .eq('id', req.user.id)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      return res.status(400).json({ error: error.message });
+    }
+
+    if (!data) {
+      return res.json({ success: true, exists: false, isDefault: true });
+    }
+
+    const prefs = data.preference_vector || [0, 0, 0, 0, 0];
+    const isDefault = prefs.every(v => v === 0);
+
+    res.json({ success: true, exists: true, isDefault });
+  } catch (err) {
+    console.error('Check preferences error:', err);
+    res.status(500).json({ error: 'Failed to check preferences' });
+  }
+});
+
+/**
  * GET /api/preferences
  * Get user's preferences
  */
 router.get('/preferences', authenticateToken, async (req, res) => {
   try {
     const { data, error } = await req.supabase
-      .from('preferences')
-      .select('*')
-      .eq('user_id', req.user.id)
+      .from('profiles')
+      .select('id, preference_vector, updated_at')
+      .eq('id', req.user.id)
       .single();
     
     if (error && error.code !== 'PGRST116') {
@@ -28,12 +58,12 @@ router.get('/preferences', authenticateToken, async (req, res) => {
     }
     
     if (!data) {
-      // No preferences yet, return defaults
+      // No profile yet, return defaults
       return res.json({
         success: true,
         data: {
           user_id: req.user.id,
-          preference: [0, 0, 0, 0, 0] // Default: all 0
+          preference_vector: [0, 0, 0, 0, 0] // Default: all 0
         }
       });
     }
@@ -41,8 +71,9 @@ router.get('/preferences', authenticateToken, async (req, res) => {
     res.json({
       success: true,
       data: {
-        ...data,
-        preference: JSON.parse(data.preference) // Parse JSON string to array
+        user_id: data.id,
+        preference_vector: data.preference_vector || [0, 0, 0, 0, 0],
+        updated_at: data.updated_at
       }
     });
   } catch (err) {
@@ -79,25 +110,15 @@ router.post('/preferences', authenticateToken, async (req, res) => {
       });
     }
     
-    // Check if preferences already exist
-    const { data: existing } = await req.supabase
-      .from('preferences')
-      .select('*')
-      .eq('user_id', req.user.id)
+    // Update profile preference_vector (profiles always exist from auth.users)
+    const { data, error } = await req.supabase
+      .from('profiles')
+      .update({
+        preference_vector: preferences
+      })
+      .eq('id', req.user.id)
+      .select()
       .single();
-    
-    let data, error;
-    
-    if (existing) {
-      // Update existing preferences
-      const result = await req.supabase
-        .from('preferences')
-        .update({
-          preference: JSON.stringify(preferences)
-        })
-        .eq('user_id', req.user.id)
-        .select()
-        .single();
       
       data = result.data;
       error = result.error;
@@ -145,7 +166,7 @@ router.post('/preferences', authenticateToken, async (req, res) => {
 router.get('/votes', authenticateToken, async (req, res) => {
   try {
     let query = req.supabase
-      .from('vote')
+      .from('votes')
       .select('*')
       .eq('user_id', req.user.id);
 
@@ -395,7 +416,7 @@ router.post('/votes', authenticateToken, async (req, res) => {
     };
 
     const { data, error } = await req.supabase
-      .from('vote')
+      .from('votes')
       .insert(voteData)
       .select()
       .single();
@@ -438,7 +459,7 @@ router.put('/votes/:id', authenticateToken, async (req, res) => {
     updateData.vote_time = new Date().toISOString();
 
     const { data, error } = await req.supabase
-      .from('vote')
+      .from('votes')
       .update(updateData)
       .eq('id', voteId)
       .eq('user_id', req.user.id) // Ensure user can only update their own votes
@@ -469,7 +490,7 @@ router.delete('/votes/:id', authenticateToken, async (req, res) => {
     const voteId = req.params.id;
 
     const { error } = await req.supabase
-      .from('vote')
+      .from('votes')
       .delete()
       .eq('id', voteId)
       .eq('user_id', req.user.id); // Ensure user can only delete their own votes
@@ -505,7 +526,7 @@ router.get('/current-song', async (_req, res) => {
     }
 
     const { data, error } = await serviceClient
-      .from('vote')
+      .from('votes')
       .select('id, song, vote_time')
       .order('vote_time', { ascending: false })
       .limit(1);

@@ -15,7 +15,7 @@ def predictor_v1(
 ) -> int:
     """
     Predictor V1: A vote-aware cosound prediction algorithm.
-
+ 
     Rules:
     - If no cosound exists: randomly assign 3 soundscape layers (gain 0.5-1.0)
     - If cosound exists:

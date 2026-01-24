@@ -22,7 +22,7 @@ router.get('/', async (req, res) => {
     
     // Get all votes this month with user profiles
     const { data: votes, error } = await supabase
-      .from('vote')
+      .from('votes')
       .select(`
         user_id,
         vote_value,
@@ -93,7 +93,7 @@ router.get('/me', authenticateToken, async (req, res) => {
     
     // Get user's vote count this month
     const { data: myVotes, error } = await req.supabase
-      .from('vote')
+      .from('votes')
       .select('vote_value')
       .eq('user_id', req.user.id)
       .gte('vote_time', monthStart);

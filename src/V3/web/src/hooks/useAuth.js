@@ -71,16 +71,15 @@ export function useAuth() {
   }, [setUser, setSession, setLoading]);
 
   /**
-   * Sign in with Spotify OAuth
+   * Sign in with Google OAuth
    */
-  const signInWithSpotify = async () => {
+  const signInWithGoogle = async () => {
     const redirectUrl = `${window.location.origin}/auth/callback`;
 
     const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'spotify',
+      provider: 'google',
       options: {
         redirectTo: redirectUrl,
-        scopes: 'user-top-read user-read-email', // Request top artists/genres and email
       },
     });
 
@@ -106,7 +105,7 @@ export function useAuth() {
     user,
     session,
     loading,
-    signInWithSpotify,
+    signInWithGoogle,
     signOut,
     isAuthenticated: Boolean(user && session),
   };

@@ -43,26 +43,23 @@ router.get('/users', async (req, res) => {
 
 /**
  * GET /api/model/songs
- * Get all unique songs from votes
+ * Get all songs from songs table
  */
 router.get('/songs', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('vote')
-      .select('song')
-      .order('song');
+    const { data, error } = await req.supabase
+      .from('songs')
+      .select('id, title, artist, type, duration, created_at')
+      .order('title');
 
     if (error) {
       return res.status(400).json({ error: error.message });
     }
 
-    // Get unique songs
-    const uniqueSongs = [...new Set(data.map(v => v.song))];
-
     res.status(200).json({
       success: true,
-      count: uniqueSongs.length,
-      data: uniqueSongs,
+      count: data.length,
+      data: data,
     });
   } catch (err) {
     console.error('Get songs error:', err);
@@ -166,7 +163,7 @@ router.get('/active-users', async (req, res) => {
 router.get('/votes', async (req, res) => {
   try {
     const { data, error } = await supabase
-      .from('vote')
+      .from('votes')
       .select('*')
       .order('vote_time', { ascending: false });
 
@@ -235,7 +232,7 @@ router.get('/votes/:userId', async (req, res) => {
     const { userId } = req.params;
 
     const { data, error } = await supabase
-      .from('vote')
+      .from('votes')
       .select('*')
       .eq('user_id', userId)
       .order('vote_time', { ascending: false });
@@ -264,7 +261,7 @@ router.get('/votes/song/:songName', async (req, res) => {
     const { songName } = req.params;
 
     const { data, error } = await supabase
-      .from('vote')
+      .from('votes')
       .select('*')
       .eq('song', songName)
       .order('vote_time', { ascending: false });

@@ -265,10 +265,6 @@ const PreferencesSurvey = () => {
 
         // Clean up sessionStorage
         sessionStorage.removeItem('preferenceRatings');
-        sessionStorage.removeItem('topGenres');
-
-        // Mark preferences as completed in localStorage
-        localStorage.setItem('hasCompletedPreferences', 'true');
 
         // Navigate to vote page after short delay
         setTimeout(() => {
@@ -294,8 +290,6 @@ const PreferencesSurvey = () => {
       audio.pause();
     }
     sessionStorage.removeItem('preferenceRatings');
-    sessionStorage.removeItem('topGenres');
-    localStorage.setItem('hasCompletedPreferences', 'true');
     navigate('/vote', { replace: true });
   };
 

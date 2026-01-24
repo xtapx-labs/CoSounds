@@ -26,7 +26,14 @@ LOCAL_IP = get_local_ip()
 
 os.environ["DJANGO_RUNSERVER_HIDE_WARNING"] = "true"
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-load_dotenv(BASE_DIR.parent.parent / "env" / ".env")
+ENV_PATHS = [
+    BASE_DIR.parent.parent / "env" / ".env",
+    BASE_DIR.parent.parent.parent / "env" / ".env",
+]
+for env_path in ENV_PATHS:
+    if env_path.exists():
+        load_dotenv(env_path)
+        break
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get("SECRET_KEY", default="django-insecure-secret-key")
@@ -259,11 +266,17 @@ AUTHENTICATION_BACKENDS = [
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 # Database configuration
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
+DATABASE_URL = (
+    os.environ.get("DATABASE_URL")
+    or os.environ.get("SUPABASE_DB_URL")
+    or os.environ.get("SUPABASE_DATABASE_URL")
+)
 DATABASES = {
     "default": dj_database_url.config(
         # For local development, you can use SQLite or a local PostgreSQL
-        default="sqlite:///" + str(BASE_DIR / "db.sqlite3"),
+        default=DATABASE_URL or "sqlite:///" + str(BASE_DIR / "db.sqlite3"),
         conn_max_age=600,
+        ssl_require=bool(DATABASE_URL),
     )
 }
 

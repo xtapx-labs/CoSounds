@@ -54,6 +54,60 @@ router.post('/checkin', authenticateToken, async (req, res) => {
 });
 
 /**
+ * POST /api/session/extend
+ * Extend current session by 10 minutes
+ */
+router.post('/extend', authenticateToken, async (req, res) => {
+  try {
+    const now = new Date();
+
+    // Get current active session
+    const { data: session, error: fetchErr } = await req.supabase
+      .from('sessions')
+      .select('*')
+      .eq('user_id', req.user.id)
+      .eq('status', 'active')
+      .gt('expires_at', now.toISOString())
+      .single();
+
+    if (fetchErr || !session) {
+      return res.status(400).json({ error: 'No active session to extend' });
+    }
+
+    // Add 10 minutes to current expires_at
+    const currentExpiry = new Date(session.expires_at);
+    const newExpiry = new Date(currentExpiry.getTime() + 10 * 60 * 1000);
+
+    const { data, error } = await req.supabase
+      .from('sessions')
+      .update({ expires_at: newExpiry.toISOString() })
+      .eq('id', session.id)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    const minutesRemaining = Math.floor((newExpiry - now) / (1000 * 60));
+
+    res.json({
+      success: true,
+      message: 'Session extended by 10 minutes',
+      data: {
+        session_id: data.id,
+        checked_in_at: data.checked_in_at,
+        expires_at: data.expires_at,
+        minutes_remaining: minutesRemaining
+      }
+    });
+  } catch (err) {
+    console.error('Extend session error:', err);
+    res.status(500).json({ error: 'Failed to extend session' });
+  }
+});
+
+/**
  * POST /api/checkout
  * Manual checkout (optional - expires automatically after 1 hour)
  */

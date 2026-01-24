@@ -237,6 +237,17 @@ const Vote = () => {
           nfctagid: nfctagid || null,
         }),
       });
+
+      // Extend session by 10 minutes after successful vote
+      try {
+        const extendResult = await apiClient('/api/session/extend', { method: 'POST' });
+        if (extendResult.success) {
+          syncTimerFromSession(extendResult.data);
+        }
+      } catch (extendErr) {
+        console.log('Session extension skipped:', extendErr);
+      }
+
       sessionStorage.setItem('voteSubmitted', 'true');
       sessionStorage.setItem('voteValue', uiVoteValue.toString());
       sessionStorage.setItem('voteSong', presentationTitle);

@@ -36,13 +36,12 @@ export const AuthTest = () => {
     testAuth();
   }, []);
 
-  const testSpotifyLogin = async () => {
+  const testGoogleLogin = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'spotify',
+        provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
-          scopes: 'user-top-read user-read-email',
         },
       });
 
@@ -104,15 +103,16 @@ export const AuthTest = () => {
         <h2 style={{ color: '#fff' }}>Instructions:</h2>
         <ol style={{ color: '#9ca3af', lineHeight: '1.8' }}>
           <li>Make sure this URL is added to Supabase redirect URLs: <code style={{ color: '#60a5fa' }}>{status.redirectUrl}</code></li>
-          <li>Make sure <code style={{ color: '#60a5fa' }}>https://bjieozmcptbxgbvzpfyc.supabase.co/auth/v1/callback</code> is in Spotify Developer Dashboard</li>
-          <li>Click the button below to test Spotify login</li>
+          <li>Make sure Google OAuth is enabled in Supabase dashboard</li>
+          <li>Make sure <code style={{ color: '#60a5fa' }}>https://bjieozmcptbxgbvzpfyc.supabase.co/auth/v1/callback</code> is in Google OAuth settings</li>
+          <li>Click the button below to test Google login</li>
         </ol>
       </div>
 
       <button
-        onClick={testSpotifyLogin}
+        onClick={testGoogleLogin}
         style={{
-          background: 'linear-gradient(135deg, #1DB954 0%, #1ed760 100%)',
+          background: 'linear-gradient(135deg, #4285F4 0%, #357ae8 100%)',
           border: 'none',
           borderRadius: '8px',
           padding: '12px 24px',
@@ -123,7 +123,7 @@ export const AuthTest = () => {
           marginTop: '20px',
         }}
       >
-        Test Spotify Login
+        Test Google Login
       </button>
     </div>
   );
