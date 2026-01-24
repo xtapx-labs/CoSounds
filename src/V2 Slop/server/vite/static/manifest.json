@@ -1,0 +1,11 @@
+{
+  "assets/js/main.js": {
+    "file": "vite/test-Dc_-zUZi.js",
+    "name": "test",
+    "src": "assets/js/main.js",
+    "isEntry": true,
+    "css": [
+      "vite/test-CbuiJzNj.css"
+    ]
+  }
+}

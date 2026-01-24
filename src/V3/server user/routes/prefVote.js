@@ -122,7 +122,8 @@ router.post('/preferences', authenticateToken, async (req, res) => {
       
       data = result.data;
       error = result.error;
-    } else {
+    
+     if (!existing) {
       // Insert new preferences
       const result = await req.supabase
         .from('preferences')

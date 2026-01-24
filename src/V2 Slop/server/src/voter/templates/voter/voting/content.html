@@ -1,0 +1,109 @@
+{% if requires_login %}
+    <div class="flex items-center justify-center h-full opacity-50 blur-sm pointer-events-none"
+         x-data
+         x-init=" setTimeout(() => { $dispatch('open-auth-modal'); htmx.ajax('GET', '{% url 'htmx_auth_options' %}', {target: '#auth-modal-content'}); }, 500) ">
+        <div class="relative h-full w-full overflow-hidden">
+            <div class="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 p-10">
+                <div class="flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         height="96px"
+                         viewBox="0 -960 960 960"
+                         width="96px"
+                         fill="#ccc">
+                        <path d="M360-240h220q17 0 31.5-8.5T632-272l84-196q2-5 3-10t1-10v-32q0-17-11.5-28.5T680-560H496l24-136q2-10-1-19t-10-16l-29-29-184 200q-8 8-12 18t-4 22v200q0 33 23.5 56.5T360-240ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+{% elif rate_limited %}
+    <div class="flex flex-col justify-center items-center h-full gap-8">
+        <div class="flex flex-col gap-4 w-full">
+            <div class="flex justify-center items-center text-2xl font-semibold font-mono">cosound</div>
+            <div class="flex flex-row justify-center items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
+                <img src="https://www.ualberta.ca/en/toolkit/media-library/homepage-assets/ua_logo_green_rgb.png"
+                     alt="clientLogo"
+                     class="max-w-28 h-10 object-contain">
+                <div class="h-8 w-px bg-gray-300 dark:bg-gray-600"></div>
+                <div class="flex flex-col justify-center text-base-content">
+                    <span class="text-xs uppercase tracking-wide opacity-75">Now Playing at</span>
+                    <span class="text-lg font-bold">{{ player.name }}</span>
+                </div>
+            </div>
+        </div>
+        {% if layers %}
+            <c-voting-cosound>
+                {% for layer in layers %}
+                    <c-voting-cosound-layer id="{{ layer.id }}"
+                                            layer_type="{{ layer.layer_type }}"
+                                            gain_level="{{ layer.gain_level }}"
+                                            sound_name="{{ layer.sound_name }}"
+                                            recording_artist="{{ layer.recording_artist }}"
+                                            artwork_url="{{ layer.artwork_url }}" />
+                {% endfor %}
+            </c-voting-cosound>
+            <div class="flex w-full justify-center gap-2 pb-4">
+                {% for layer in layers %}
+                    <a href="#{{ layer.id }}" class="btn btn-primary btn-soft btn-md btn-circle">{{ forloop.counter }}</a>
+                {% endfor %}
+            </div>
+        {% endif %}
+        <c-voting-buttons upvote="0" last_upvoted="{{ last_vote_timestamp|date:'c' }}" />
+        {% if voter_data %}
+            <div class="pt-4 pb-16 max-w-96">
+                <c-voting-voter-card num_votes="{{ voter_data.num_votes }}"
+                                     join_date="{{ voter_data.join_date }}"
+                                     username="{{ voter_data.username }}"
+                                     user_id="{{ voter_data.user_id }}" />
+            </div>
+        {% endif %}
+    </div>
+{% elif success %}
+    <div class="flex flex-col justify-center items-center h-full gap-8">
+        <div class="flex flex-col gap-4 w-full">
+            <div class="flex justify-center items-center text-2xl font-semibold font-mono">cosound</div>
+            <div class="flex flex-row justify-center items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
+                <img src="https://www.ualberta.ca/en/toolkit/media-library/homepage-assets/ua_logo_green_rgb.png"
+                     alt="clientLogo"
+                     class="max-w-28 h-10 object-contain">
+                <div class="h-8 w-px bg-gray-300 dark:bg-gray-600"></div>
+                <div class="flex flex-col justify-center text-base-content">
+                    <span class="text-xs uppercase tracking-wide opacity-75">Now Playing at</span>
+                    <span class="text-lg font-bold">{{ player.name }}</span>
+                </div>
+            </div>
+        </div>
+        {% if layers %}
+            <c-voting-cosound>
+                {% for layer in layers %}
+                    <c-voting-cosound-layer id="{{ layer.id }}"
+                                            layer_type="{{ layer.layer_type }}"
+                                            gain_level="{{ layer.gain_level }}"
+                                            sound_name="{{ layer.sound_name }}"
+                                            recording_artist="{{ layer.recording_artist }}"
+                                            artwork_url="{{ layer.artwork_url }}" />
+                {% endfor %}
+            </c-voting-cosound>
+            <div class="flex w-full justify-center gap-2 pb-4">
+                {% for layer in layers %}
+                    <a href="#{{ layer.id }}" class="btn btn-primary btn-soft btn-md btn-circle">{{ forloop.counter }}</a>
+                {% endfor %}
+            </div>
+        {% endif %}
+        <c-voting-buttons upvote="{{ vote.value }}" last_upvoted="{{ vote.created_at|date:'c' }}" />
+        {% if voter_data %}
+            <div class="pt-4 pb-16">
+                <c-voting-voter-card num_votes="{{ voter_data.num_votes }}"
+                                     join_date="{{ voter_data.join_date }}"
+                                     username="{{ voter_data.username }}"
+                                     user_id="{{ voter_data.user_id }}" />
+            </div>
+        {% endif %}
+    </div>
+{% else %}
+    <div class="flex items-center justify-center h-full">
+        <div class="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 text-center">
+            <p class="text-gray-600 dark:text-gray-300">Something went wrong. Please try again.</p>
+        </div>
+    </div>
+{% endif %}

@@ -98,3 +98,15 @@ SECURITY-ATTACK-VECTORS.md
 VIBECODER_SECURITY_REVIEW.md
 VULNERABILITY_PROPOSAL.md
 vibecoder-review.md
+CODE_DUPLICATION_ANALYSIS.md
+
+# AI-generated documentation (root level only, keep docs/ folder)
+/API_OVERVIEW.md
+/DATABASE_DESIGN_*.md
+/V1_RUNNING_STATUS.md
+/V3_ARCHITECTURE_PLAN.md
+/supabase_schema_v3.sql
+
+# AI assistant folders
+.cursor/
+.gemini/
