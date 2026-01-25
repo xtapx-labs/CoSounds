@@ -195,5 +195,6 @@ npm run dev
 
 Web app will run on `http://localhost:5173` (Vite default)
 
+---
 
 **Happy Voting! 🎵👍👎**
