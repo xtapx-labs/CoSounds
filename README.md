@@ -1,6 +1,8 @@
 # 🎧 CoSounds - Adaptive, Personalized, Collaborative Soundscapes. 
 <img width="1700" height="946" alt="image" src="https://github.com/user-attachments/assets/c2138197-d27c-4177-b33f-9ac8a2503a54" />
 
+ [natHacks 2025](https://drive.google.com/file/d/10n1oRwq8HrAsufm21Z_m6vwvh6lPTaxH/view?usp=sharing) • [Slidedoc](https://drive.google.com/file/d/1nI1k9LKL2yyn4SobaTB9S7pXkTnIi14_/view?usp=sharing) • [Video](https://drive.google.com/file/d/1CbsY1Lxtr8HvMyOpir7ImNoL-SS7RI9B/view?usp=sharing) 
+
 ## 🌱 Inspiration
 Stress is something we can all relate to, and music is a universal way to relax.
 
