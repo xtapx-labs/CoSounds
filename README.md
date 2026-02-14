@@ -90,8 +90,8 @@ Co-sounds consists of three integrated components:
 #### 1. Clone the repository
 
 ```bash
-git clone https://github.com/ohjime/soundguys.git
-cd soundguys
+git clone https://github.com/pranav-talwar/cosounds.git
+cd cosounds
 ```
 
 #### 2. Install Backend Server Dependencies
